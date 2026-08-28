@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Distance {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  name      String
+  unit      String // "time" | "laps"
+  sortOrder Int
+  records   RecordEntry[]
+}
+
+model RecordEntry {
+  id          String    @id @default(cuid())
+  distance    Distance  @relation(fields: [distanceId], references: [id])
+  distanceId  String
+  gender      String // "M" | "F"
+  recordType  String // "AGE_GROUP" | "OVERALL"
+  ageCategory String  @default("") // "" for OVERALL (Prisma's compound-unique `where` can't take null)
+  rank        Int // 1..3
+  name        String?
+  time        String? // "HH:MM:SS" as given, null for laps-based or empty slot
+  laps        Int? // Back Yard Ultra only
+  event       String?
+  date        DateTime?
+  footnote    Footnote? @relation(fields: [footnoteId], references: [id])
+  footnoteId  String?
+
+  @@unique([distanceId, gender, recordType, ageCategory, rank])
+}
+
+model Footnote {
+  id      String        @id @default(cuid())
+  // Display marker only (e.g. "**") — NOT unique: the sheet reuses the same
+  // marker for unrelated footnotes (e.g. "**" means both a Mince Pie 10 and
+  // a Beachy Head Ultra distance clarification, disambiguated by context).
+  symbol  String
+  text    String        @unique
+  records RecordEntry[]
+}
