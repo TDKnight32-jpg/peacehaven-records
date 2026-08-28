@@ -40,9 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# sqlite
-/prisma/dev.db
-/prisma/dev.db-journal
-
 # import script output
 /scripts/import-report.json
