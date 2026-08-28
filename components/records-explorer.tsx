@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ClientRecord, DistanceMeta } from "@/lib/records";
+import type { ClientHistoryEntry, ClientRecord, DistanceMeta } from "@/lib/records";
 import { DistanceTabs } from "./distance-tabs";
 import { ToggleGroup } from "./toggle-group";
 import { SearchBox } from "./search-box";
 import { RecordCard } from "./record-card";
+import { RecordHistoryPanel } from "./record-history";
 
 type Gender = "M" | "F";
 type RecordType = "AGE_GROUP" | "OVERALL";
@@ -34,9 +35,11 @@ const GENDER_SECTION_LABEL: Record<Gender, string> = { F: "Women's", M: "Men's" 
 export function RecordsExplorer({
   distances,
   records,
+  history,
 }: {
   distances: DistanceMeta[];
   records: ClientRecord[];
+  history: ClientHistoryEntry[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -122,6 +125,11 @@ export function RecordsExplorer({
 
   const hasAnyCards = sections.some((s) => s.cards.length > 0);
 
+  const historyForDistance = useMemo(
+    () => history.filter((h) => currentDistance && h.distanceSlug === currentDistance.slug),
+    [history, currentDistance],
+  );
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 sm:px-6">
       <DistanceTabs distances={sortedDistances} selected={distanceSlug} onSelect={setDistanceSlug} />
@@ -164,6 +172,8 @@ export function RecordsExplorer({
           )}
         </div>
       )}
+
+      <RecordHistoryPanel entries={historyForDistance} genders={genders} />
     </div>
   );
 }

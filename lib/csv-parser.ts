@@ -24,9 +24,33 @@ export interface ParsedFootnote {
   symbol: string;
 }
 
+export interface ParsedHistoryEntry {
+  distanceSlug: string;
+  gender: Gender;
+  /** Chronological, ascending — 1 is the earliest known holder; the highest
+   * order per (distance, gender) is the current record. */
+  order: number;
+  name: string;
+  time: string;
+  event: string | null;
+  date: Date | null;
+}
+
+/** Distances the sheet tracks a "records history" progression for — the
+ * rest (1 mile, ultras, Back Yard Ultra) simply have no history section. */
+export const HISTORY_DISTANCE_SLUGS = [
+  "5k",
+  "10k",
+  "10-mile",
+  "half-marathon",
+  "20-mile",
+  "marathon",
+] as const;
+
 export interface ParseResult {
   records: ParsedRecord[];
   footnotes: ParsedFootnote[];
+  history: ParsedHistoryEntry[];
   warnings: string[];
 }
 
@@ -373,6 +397,91 @@ function parseOverallBlock(
   return out;
 }
 
+// ---- Records history block ---------------------------------------------------------
+
+/** Each history block is 9 columns wide: [women name/time/event/date] (0-3),
+ * [men name/time/event/date] (4-7), then a blank separator (8) before the
+ * next distance's block. Blocks are found by scanning for a title cell
+ * matching "<distance> records history" rather than a fixed column, so this
+ * tolerates the block being moved if the sheet is restructured — but unlike
+ * the age-group sections, a block's *row extent* isn't fixed (some distances
+ * have one historical holder, others several), so each gender's column is
+ * walked independently until it goes blank. */
+function parseHistoryBlock(
+  rows: string[][],
+  warnings: string[],
+): ParsedHistoryEntry[] {
+  const out: ParsedHistoryEntry[] = [];
+  const seen = new Set<string>();
+
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < (rows[r]?.length ?? 0); c++) {
+      const cell = cellAt(rows, r, c);
+      const m = cell.match(/^(.*?)\s+records\s+history$/i);
+      if (!m) continue;
+
+      const dist = matchDistance(m[1]);
+      if (!dist) {
+        warnings.push(`Unrecognized distance in history title "${cell}" at row ${r + 1}`);
+        continue;
+      }
+      if (seen.has(dist.slug)) {
+        warnings.push(`Duplicate history block for ${dist.slug} at row ${r + 1}`);
+      }
+      seen.add(dist.slug);
+
+      const womenNameCol = c;
+      const menNameCol = c + 4;
+      const dataStart = r + 2; // title row, then "Women's"/"Men's" subheader row
+
+      const order: Record<Gender, number> = { F: 0, M: 0 };
+      let row = dataStart;
+      while (row < rows.length) {
+        const wName = cellAt(rows, row, womenNameCol);
+        const mName = cellAt(rows, row, menNameCol);
+        if (!wName && !mName) break;
+
+        if (wName) {
+          order.F++;
+          out.push({
+            distanceSlug: dist.slug,
+            gender: "F",
+            order: order.F,
+            name: wName,
+            time: cellAt(rows, row, womenNameCol + 1),
+            event: cellAt(rows, row, womenNameCol + 2) || null,
+            date: parseDate(cellAt(rows, row, womenNameCol + 3)),
+          });
+        }
+        if (mName) {
+          order.M++;
+          out.push({
+            distanceSlug: dist.slug,
+            gender: "M",
+            order: order.M,
+            name: mName,
+            time: cellAt(rows, row, menNameCol + 1),
+            event: cellAt(rows, row, menNameCol + 2) || null,
+            date: parseDate(cellAt(rows, row, menNameCol + 3)),
+          });
+        }
+        row++;
+      }
+    }
+  }
+
+  for (const slug of HISTORY_DISTANCE_SLUGS) {
+    if (!seen.has(slug)) warnings.push(`Missing expected history block for ${slug}`);
+  }
+  for (const slug of seen) {
+    if (!(HISTORY_DISTANCE_SLUGS as readonly string[]).includes(slug)) {
+      warnings.push(`Unexpected history block for ${slug} — not in the known set, review HISTORY_DISTANCE_SLUGS`);
+    }
+  }
+
+  return out;
+}
+
 // ---- Entry point --------------------------------------------------------------------
 
 export function parseSheet(csvText: string): ParseResult {
@@ -387,8 +496,9 @@ export function parseSheet(csvText: string): ParseResult {
   const womenAge = parseAgeGroupBlock(rows, "F", 1, 2, 3, 4, 5, footnotes, warnings);
   const menAge = parseAgeGroupBlock(rows, "M", 7, 8, 9, 10, 11, footnotes, warnings);
   const overall = parseOverallBlock(rows, 13, 14, 15, 16, 17, footnotes, warnings);
+  const history = parseHistoryBlock(rows, warnings);
 
-  return { records: [...womenAge, ...menAge, ...overall], footnotes, warnings };
+  return { records: [...womenAge, ...menAge, ...overall], footnotes, history, warnings };
 }
 
 export { DISTANCES };

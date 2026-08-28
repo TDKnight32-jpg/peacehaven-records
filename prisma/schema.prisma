@@ -8,12 +8,13 @@ datasource db {
 }
 
 model Distance {
-  id        String        @id @default(cuid())
-  slug      String        @unique
-  name      String
-  unit      String // "time" | "laps"
-  sortOrder Int
-  records   RecordEntry[]
+  id             String                @id @default(cuid())
+  slug           String                @unique
+  name           String
+  unit           String // "time" | "laps"
+  sortOrder      Int
+  records        RecordEntry[]
+  historyEntries RecordHistoryEntry[]
 }
 
 model RecordEntry {
@@ -33,6 +34,24 @@ model RecordEntry {
   footnoteId  String?
 
   @@unique([distanceId, gender, recordType, ageCategory, rank])
+}
+
+// The sheet's "records history" columns only cover 5K/10K/10 Mile/Half
+// Marathon/20 Mile/Marathon — other distances simply have no rows here.
+// `order` is chronological, ascending (1 = earliest known holder); the
+// highest `order` per (distance, gender) is the current record.
+model RecordHistoryEntry {
+  id         String    @id @default(cuid())
+  distance   Distance  @relation(fields: [distanceId], references: [id])
+  distanceId String
+  gender     String // "M" | "F"
+  order      Int
+  name       String
+  time       String
+  event      String?
+  date       DateTime?
+
+  @@unique([distanceId, gender, order])
 }
 
 model Footnote {

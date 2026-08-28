@@ -9,14 +9,14 @@ import { RecordsExplorer } from "@/components/records-explorer";
 export const revalidate = 0;
 
 export default async function Home() {
-  const { distances, records } = await getRecordsData();
+  const { distances, records, history } = await getRecordsData();
 
   return (
     <>
       <SiteHeader />
       <main className="flex-1">
         <Suspense fallback={null}>
-          <RecordsExplorer distances={distances} records={records} />
+          <RecordsExplorer distances={distances} records={records} history={history} />
         </Suspense>
       </main>
     </>

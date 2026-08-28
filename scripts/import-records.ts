@@ -1,6 +1,12 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { parseSheet, type ParsedRecord, type ParsedFootnote } from "../lib/csv-parser";
+import {
+  parseSheet,
+  HISTORY_DISTANCE_SLUGS,
+  type ParsedRecord,
+  type ParsedFootnote,
+  type ParsedHistoryEntry,
+} from "../lib/csv-parser";
 import { DISTANCES } from "../lib/distances";
 import { prisma } from "../lib/db";
 
@@ -21,13 +27,14 @@ async function fetchCsv(): Promise<string> {
  * plus every warning the parser raised (duplicate/missing sections,
  * unresolved footnotes, structural drift) is treated as fatal here.
  */
-function sanityCheck(records: ParsedRecord[], warnings: string[]) {
+function sanityCheck(records: ParsedRecord[], history: ParsedHistoryEntry[], warnings: string[]) {
   const errors: string[] = warnings.map((w) => `parser warning: ${w}`);
 
   const ageDistancesSeen: Record<"F" | "M", Set<string>> = { F: new Set(), M: new Set() };
   const overallDistancesSeen: Record<"F" | "M", Set<string>> = { F: new Set(), M: new Set() };
   const categoriesSeen = new Map<string, Set<string>>(); // `${slug}:${gender}` -> categories
   const rank1Keys = new Set<string>();
+  const overallRank1ByKey = new Map<string, ParsedRecord>(); // `${slug}:${gender}` -> the OVERALL rank-1 row
 
   for (const r of records) {
     if (r.recordType === "AGE_GROUP") {
@@ -38,7 +45,10 @@ function sanityCheck(records: ParsedRecord[], warnings: string[]) {
       if (r.rank === 1) rank1Keys.add(`AGE:${r.distanceSlug}:${r.gender}:${r.ageCategory}`);
     } else {
       overallDistancesSeen[r.gender].add(r.distanceSlug);
-      if (r.rank === 1) rank1Keys.add(`OVERALL:${r.distanceSlug}:${r.gender}`);
+      if (r.rank === 1) {
+        rank1Keys.add(`OVERALL:${r.distanceSlug}:${r.gender}`);
+        overallRank1ByKey.set(`${r.distanceSlug}:${r.gender}`, r);
+      }
     }
   }
 
@@ -66,6 +76,40 @@ function sanityCheck(records: ParsedRecord[], warnings: string[]) {
     }
   }
 
+  // History: every tracked distance/gender must have a non-empty, gap-free
+  // 1..N ordering, and its most recent entry must agree with the current
+  // OVERALL record — the sheet treats the latest history row as "now holds
+  // it", so a mismatch means the parse (or the sheet) has drifted.
+  for (const slug of HISTORY_DISTANCE_SLUGS) {
+    for (const gender of ["F", "M"] as const) {
+      const entries = history
+        .filter((h) => h.distanceSlug === slug && h.gender === gender)
+        .sort((a, b) => a.order - b.order);
+      if (entries.length === 0) {
+        errors.push(`Missing history entries for ${slug} (${gender})`);
+        continue;
+      }
+      entries.forEach((h, i) => {
+        if (h.order !== i + 1) {
+          errors.push(`Non-contiguous history order for ${slug} (${gender}): got ${h.order} at position ${i + 1}`);
+        }
+      });
+
+      const latest = entries[entries.length - 1];
+      const overall = overallRank1ByKey.get(`${slug}:${gender}`);
+      if (overall?.name && (overall.name !== latest.name || overall.time !== latest.time)) {
+        errors.push(
+          `History's latest holder for ${slug} (${gender}) is "${latest.name}" ${latest.time}, but the current OVERALL record is "${overall.name}" ${overall.time}`,
+        );
+      }
+    }
+  }
+  for (const h of history) {
+    if (!(HISTORY_DISTANCE_SLUGS as readonly string[]).includes(h.distanceSlug)) {
+      errors.push(`History entry for unexpected distance "${h.distanceSlug}" — not in HISTORY_DISTANCE_SLUGS`);
+    }
+  }
+
   // Structural floor: every (distance, gender) contributes at least 5 age-group
   // rank-1 rows + 1 overall rank-1 row, even if every slot is empty.
   const expectedMin = DISTANCES.length * 2 * (5 + 1);
@@ -80,7 +124,7 @@ function sanityCheck(records: ParsedRecord[], warnings: string[]) {
   }
 }
 
-function buildReport(records: ParsedRecord[], footnotes: ParsedFootnote[]) {
+function buildReport(records: ParsedRecord[], footnotes: ParsedFootnote[], history: ParsedHistoryEntry[]) {
   type Bucket = { filled: number; empty: number };
   const counts: Record<string, { AGE_GROUP: Record<Gender, Record<string, Bucket>>; OVERALL: Record<Gender, Bucket> }> = {};
   type Gender = "F" | "M";
@@ -118,11 +162,22 @@ function buildReport(records: ParsedRecord[], footnotes: ParsedFootnote[]) {
   const lapsSample = records.find((r) => r.laps != null);
   if (lapsSample) curated.push(lapsSample);
 
+  const historyByDistance: Record<string, { F: ParsedHistoryEntry[]; M: ParsedHistoryEntry[] }> = {};
+  for (const slug of HISTORY_DISTANCE_SLUGS) historyByDistance[slug] = { F: [], M: [] };
+  for (const h of history) {
+    (historyByDistance[h.distanceSlug] ??= { F: [], M: [] })[h.gender].push(h);
+  }
+  for (const bySlug of Object.values(historyByDistance)) {
+    bySlug.F.sort((a, b) => a.order - b.order);
+    bySlug.M.sort((a, b) => a.order - b.order);
+  }
+
   return {
     totalRecords: records.length,
     footnotes,
     counts,
     samples: curated,
+    history: historyByDistance,
   };
 }
 
@@ -133,16 +188,16 @@ async function main() {
   const csvText = await fetchCsv();
 
   console.log("Parsing...");
-  const { records, footnotes, warnings } = parseSheet(csvText);
+  const { records, footnotes, history, warnings } = parseSheet(csvText);
 
   console.log("Running sanity checks...");
-  sanityCheck(records, warnings);
+  sanityCheck(records, history, warnings);
   console.log("Sanity checks passed.");
 
-  const report = buildReport(records, footnotes);
+  const report = buildReport(records, footnotes, history);
   const reportPath = path.join(__dirname, "import-report.json");
   writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  console.log(`Parsed ${records.length} records, ${footnotes.length} footnotes.`);
+  console.log(`Parsed ${records.length} records, ${footnotes.length} footnotes, ${history.length} history entries.`);
   console.log(`Report written to ${reportPath}`);
 
   if (!write) {
@@ -212,6 +267,30 @@ async function main() {
   }
 
   console.log(`Wrote ${records.length} records to the database.`);
+
+  // Full replace rather than upsert: history rows have no external references
+  // and re-deriving `order` from scratch each run is simpler than reconciling
+  // insertions/removals in the middle of a progression.
+  const historyDistanceIds = HISTORY_DISTANCE_SLUGS.map((slug) => distanceIdBySlug.get(slug)).filter(
+    (id): id is string => Boolean(id),
+  );
+  await prisma.recordHistoryEntry.deleteMany({ where: { distanceId: { in: historyDistanceIds } } });
+  for (const h of history) {
+    const distanceId = distanceIdBySlug.get(h.distanceSlug);
+    if (!distanceId) continue;
+    await prisma.recordHistoryEntry.create({
+      data: {
+        distanceId,
+        gender: h.gender,
+        order: h.order,
+        name: h.name,
+        time: h.time,
+        event: h.event,
+        date: h.date,
+      },
+    });
+  }
+  console.log(`Wrote ${history.length} history entries to the database.`);
 }
 
 main()

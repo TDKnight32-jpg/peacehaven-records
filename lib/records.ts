@@ -23,13 +23,26 @@ export interface DistanceMeta {
   sortOrder: number;
 }
 
+export interface ClientHistoryEntry {
+  id: string;
+  distanceSlug: string;
+  gender: "M" | "F";
+  order: number;
+  name: string;
+  time: string;
+  event: string | null;
+  date: string | null;
+}
+
 export async function getRecordsData(): Promise<{
   distances: DistanceMeta[];
   records: ClientRecord[];
+  history: ClientHistoryEntry[];
 }> {
-  const [distanceRows, recordRows] = await Promise.all([
+  const [distanceRows, recordRows, historyRows] = await Promise.all([
     prisma.distance.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.recordEntry.findMany({ include: { footnote: true } }),
+    prisma.recordHistoryEntry.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   const distanceById = new Map(distanceRows.map((d) => [d.id, d]));
@@ -60,5 +73,19 @@ export async function getRecordsData(): Promise<{
     sortOrder: d.sortOrder,
   }));
 
-  return { distances, records };
+  const history: ClientHistoryEntry[] = historyRows.map((h) => {
+    const distance = distanceById.get(h.distanceId)!;
+    return {
+      id: h.id,
+      distanceSlug: distance.slug,
+      gender: h.gender as "M" | "F",
+      order: h.order,
+      name: h.name,
+      time: h.time,
+      event: h.event,
+      date: h.date ? h.date.toISOString() : null,
+    };
+  });
+
+  return { distances, records, history };
 }

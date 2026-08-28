@@ -49,7 +49,8 @@ export const DISTANCES: DistanceDef[] = [
     name: "10 Mile",
     unit: "time",
     sortOrder: 4,
-    matchKeys: keys("10 Mile"),
+    // "10mi" is how the sheet's "records history" section header abbreviates this distance.
+    matchKeys: keys("10 Mile", "10mi"),
   },
   {
     slug: "half-marathon",
@@ -63,7 +64,8 @@ export const DISTANCES: DistanceDef[] = [
     name: "20 Mile",
     unit: "time",
     sortOrder: 6,
-    matchKeys: keys("20 Mile"),
+    // "20mi" is how the sheet's "records history" section header abbreviates this distance.
+    matchKeys: keys("20 Mile", "20mi"),
   },
   {
     slug: "marathon",
