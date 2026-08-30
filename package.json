@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import": "tsx scripts/import-records.ts"
+    "import": "tsx scripts/import-records.ts",
+    "import-gp": "tsx scripts/import-gp.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

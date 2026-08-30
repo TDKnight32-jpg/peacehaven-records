@@ -35,6 +35,17 @@ npm run import -- --write     # writes the parsed records to the database
 
 The site reads fresh on every request, so changes appear immediately — no redeploy needed.
 
+## Club Grand Prix
+
+Same idea as club records, imported from a separate Google Sheet with one "Events" tab and one tab per race. Fill in `scripts/gp-sheet-config.ts` with the sheet's publish-to-CSV base URL, the Events tab's `gid`, and each race tab's `{ name, gid }` (name must match that race's row in the Events tab) before running:
+
+```bash
+npm run import-gp                # dry run: parses + sanity-checks + writes scripts/import-gp-report.json
+npm run import-gp -- --write     # writes events, runners, and results to the database
+```
+
+Runners are matched across tabs by normalized name (case/whitespace-insensitive) so hand-typed variants collapse onto one runner rather than creating duplicates — genuine spelling variants (e.g. a nickname) still need a manual fix.
+
 ## Deploy
 
 Pushing to `main` on GitHub triggers an automatic Vercel deployment.

@@ -42,3 +42,4 @@ next-env.d.ts
 
 # import script output
 /scripts/import-report.json
+/scripts/import-gp-report.json

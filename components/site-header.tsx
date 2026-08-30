@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function SiteHeader() {
   return (
@@ -11,6 +12,14 @@ export function SiteHeader() {
           </span>
           <h1 className="text-lg font-bold text-foreground">Club Records</h1>
         </div>
+        <nav className="ml-4 flex gap-4">
+          <Link href="/" className="text-sm font-medium text-muted hover:text-primary">
+            Records
+          </Link>
+          <Link href="/gp" className="text-sm font-medium text-muted hover:text-primary">
+            Grand Prix
+          </Link>
+        </nav>
         <a
           href="https://www.peacehavenrunclub.com"
           className="ml-auto hidden text-sm font-medium text-muted hover:text-primary sm:block"

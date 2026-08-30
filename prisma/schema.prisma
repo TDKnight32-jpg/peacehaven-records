@@ -15,6 +15,7 @@ model Distance {
   sortOrder      Int
   records        RecordEntry[]
   historyEntries RecordHistoryEntry[]
+  gpEvents       GpEvent[]
 }
 
 model RecordEntry {
@@ -62,4 +63,49 @@ model Footnote {
   symbol  String
   text    String        @unique
   records RecordEntry[]
+}
+
+// ---- Club Grand Prix -----------------------------------------------------
+
+// A runner identity, resolved during CGP import by normalized-name match
+// (see lib/runner-match.ts) rather than a fresh row per race tab — results
+// for the same person are hand-typed across many tabs, so name strings alone
+// would fragment one runner into several. `name` is whatever spelling was
+// seen first; later spelling variants of the same normalized name are not
+// overwritten.
+model Runner {
+  id      String     @id @default(cuid())
+  name    String
+  slug    String     @unique
+  results GpResult[]
+}
+
+model GpEvent {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  date        DateTime
+  distance    Distance?  @relation(fields: [distanceId], references: [id])
+  distanceId  String?
+  scoringType String // "FASTEST_TIME" | "AGE_GRADE" | "NAKED_RUN"
+  isSussexGp  Boolean    @default(false)
+  sortOrder   Int
+  results     GpResult[]
+}
+
+model GpResult {
+  id            String  @id @default(cuid())
+  event         GpEvent @relation(fields: [eventId], references: [id])
+  eventId       String
+  runner        Runner  @relation(fields: [runnerId], references: [id])
+  runnerId      String
+  category      String // "M" | "F"
+  result        String?
+  rawTime       String?
+  predictedTime String?
+  position      Int?
+  points        Int?
+  isVolunteer   Boolean @default(false)
+
+  @@unique([eventId, runnerId, category])
 }
