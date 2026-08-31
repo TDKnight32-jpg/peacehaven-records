@@ -33,7 +33,10 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
         <h2 className="text-lg font-bold text-foreground">Club Grand Prix Leaderboard</h2>
         <ToggleGroup label="Category" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
       </div>
-      <p className="mt-1 text-sm text-muted">Best 8 scores count, out of however many events you&apos;ve entered.</p>
+      <p className="mt-1 text-sm text-muted">
+        Best 8 race scores count, out of however many races you&apos;ve entered — volunteer credits are added on top,
+        uncapped.
+      </p>
 
       {!hasAnyRows ? (
         <p className="mt-10 rounded-xl border border-border bg-surface p-6 text-center text-muted">
@@ -56,7 +59,8 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
                         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
                           <th className="px-4 py-2 font-semibold">#</th>
                           <th className="px-4 py-2 font-semibold">Runner</th>
-                          <th className="px-4 py-2 font-semibold">Events</th>
+                          <th className="px-4 py-2 font-semibold">Races</th>
+                          <th className="px-4 py-2 text-right font-semibold">Vol. bonus</th>
                           <th className="px-4 py-2 text-right font-semibold">Points</th>
                         </tr>
                       </thead>
@@ -73,7 +77,10 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
                               </Link>
                             </td>
                             <td className="px-4 py-2 text-muted">
-                              {row.eventsCounted} of {row.eventsEntered}
+                              {row.raceEventsCounted} of {row.raceEventsEntered}
+                            </td>
+                            <td className="px-4 py-2 text-right font-mono text-muted">
+                              {row.volunteerPoints > 0 ? `+${row.volunteerPoints}` : "—"}
                             </td>
                             <td className="px-4 py-2 text-right font-mono font-semibold text-primary">
                               {row.totalPoints}

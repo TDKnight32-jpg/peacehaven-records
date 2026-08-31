@@ -42,7 +42,13 @@ export function GpRunnerPage({
                 {row.totalPoints} <span className="text-sm font-normal text-muted">pts</span>
               </p>
               <p className="text-xs text-muted">
-                best {row.eventsCounted} of {row.eventsEntered} events
+                {row.racePoints} race pts (best {row.raceEventsCounted} of {row.raceEventsEntered})
+                {row.volunteerEvents > 0 && (
+                  <>
+                    {" "}
+                    + {row.volunteerPoints} volunteer bonus ({row.volunteerEvents})
+                  </>
+                )}
               </p>
             </div>
           );
