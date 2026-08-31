@@ -15,6 +15,78 @@ const CATEGORY_OPTIONS = [
 
 const CATEGORY_SECTION_LABEL: Record<"M" | "F", string> = { F: "Women's", M: "Men's" };
 
+interface RankStyle {
+  container: string;
+  rank: string;
+  name: string;
+  points: string;
+}
+
+/** Top 3 get a medal-tinted background, a matching 4px left border (thicker
+ * than a plain row's border so it reads clearly against the lighter
+ * background), and name/points sizes that taper down from rank 1. Rank 4+
+ * gets a plain white card with a thin all-around border — its own
+ * `border-l-[4px] border-l-transparent` keeps its left edge the same width
+ * as the medal rows so nothing shifts horizontally between them. */
+function rankStyle(rank: number): RankStyle {
+  switch (rank) {
+    case 1:
+      return {
+        container: "bg-gp-row-gold border-l-[4px] border-l-gp-gold-edge",
+        rank: "text-gp-gold",
+        name: "text-foreground text-[20px]",
+        points: "text-foreground text-[26px]",
+      };
+    case 2:
+      return {
+        container: "bg-gp-row-silver border-l-[4px] border-l-gp-silver-edge",
+        rank: "text-gp-silver",
+        name: "text-foreground text-[18px]",
+        points: "text-foreground text-[23px]",
+      };
+    case 3:
+      return {
+        container: "bg-gp-row-bronze border-l-[4px] border-l-gp-bronze-edge",
+        rank: "text-gp-bronze",
+        name: "text-foreground text-[17px]",
+        points: "text-foreground text-[21px]",
+      };
+    default:
+      return {
+        container: "bg-surface border-[0.5px] border-border border-l-[4px] border-l-transparent",
+        rank: "text-muted",
+        name: "text-foreground text-[15px]",
+        points: "text-foreground text-lg",
+      };
+  }
+}
+
+function LeaderboardRowCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
+  const style = rankStyle(rank);
+  return (
+    <div className={`flex items-center gap-3 rounded-xl px-4 py-3 sm:gap-4 ${style.container}`}>
+      <span className={`w-6 shrink-0 text-right font-bold ${style.rank}`}>{rank}</span>
+      <div className="min-w-0 flex-1">
+        <Link
+          href={`/gp/runners/${row.runnerSlug}`}
+          className={`block truncate font-semibold hover:underline ${style.name}`}
+        >
+          {row.runnerName}
+        </Link>
+        <p className="mt-0.5 text-xs text-muted">
+          {row.raceEventsCounted} of {row.raceEventsEntered} races
+          {row.volunteerPoints > 0 ? (
+            <span className="text-primary"> · +{row.volunteerPoints} volunteer</span>
+          ) : (
+            <span className="text-gp-dim"> · —</span>
+          )}
+        </p>
+      </div>
+      <span className={`shrink-0 font-mono font-bold ${style.points}`}>{row.totalPoints}</span>
+    </div>
+  );
+}
+
 export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
   const [category, setCategory] = useState<CategoryFilter>("ALL");
 
@@ -31,7 +103,15 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
     <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 sm:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-bold text-foreground">Club Grand Prix Leaderboard</h2>
-        <ToggleGroup label="Category" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/gp/events"
+            className="rounded-lg border-[0.5px] border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50"
+          >
+            All events
+          </Link>
+          <ToggleGroup label="Category" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
+        </div>
       </div>
       <p className="mt-1 text-sm text-muted">
         Best 8 race scores count, out of however many races you&apos;ve entered — volunteer credits are added on top,
@@ -53,42 +133,10 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
                       {CATEGORY_SECTION_LABEL[section.category]}
                     </h3>
                   )}
-                  <div className="overflow-hidden rounded-xl border border-border bg-surface">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
-                          <th className="px-4 py-2 font-semibold">#</th>
-                          <th className="px-4 py-2 font-semibold">Runner</th>
-                          <th className="px-4 py-2 font-semibold">Races</th>
-                          <th className="px-4 py-2 text-right font-semibold">Vol. bonus</th>
-                          <th className="px-4 py-2 text-right font-semibold">Points</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.rows.map((row, i) => (
-                          <tr key={row.runnerId} className="border-b border-border last:border-0">
-                            <td className="px-4 py-2 text-muted">{i + 1}</td>
-                            <td className="px-4 py-2">
-                              <Link
-                                href={`/gp/runners/${row.runnerSlug}`}
-                                className="font-medium text-foreground hover:text-primary"
-                              >
-                                {row.runnerName}
-                              </Link>
-                            </td>
-                            <td className="px-4 py-2 text-muted">
-                              {row.raceEventsCounted} of {row.raceEventsEntered}
-                            </td>
-                            <td className="px-4 py-2 text-right font-mono text-muted">
-                              {row.volunteerPoints > 0 ? `+${row.volunteerPoints}` : "—"}
-                            </td>
-                            <td className="px-4 py-2 text-right font-mono font-semibold text-primary">
-                              {row.totalPoints}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="flex flex-col gap-2">
+                    {section.rows.map((row, i) => (
+                      <LeaderboardRowCard key={row.runnerId} row={row} rank={i + 1} />
+                    ))}
                   </div>
                 </div>
               ),

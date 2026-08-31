@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { ClientGpEvent, ClientGpResult } from "@/lib/gp";
 
-const SCORING_LABEL: Record<string, string> = {
+export const SCORING_LABEL: Record<string, string> = {
   FASTEST_TIME: "Fastest Time",
   AGE_GRADE: "Age Grade",
   NAKED_RUN: "Naked Run",
 };
 
-function formatDate(iso: string): string {
+export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 

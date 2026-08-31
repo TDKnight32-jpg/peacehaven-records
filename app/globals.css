@@ -14,6 +14,55 @@
 
   --color-primary-50: #eef3ef;
   --color-primary-100: #d6e2da;
+
+  /* Club Grand Prix — medal ranks and the dimmed-placeholder tone. Fixed
+   * values (not theme-scoped): unlike the tokens above, these have no
+   * Records-site equivalent to override, so they're just always available.
+   * Gold/silver/bronze split into a rank/text tone and a (brighter) left-
+   * border "edge" tone, since the GP light theme uses two different shades
+   * per medal rather than one shared color. */
+  --color-gp-row-gold: #fdf3d9;
+  --color-gp-row-silver: #f2f2f0;
+  --color-gp-row-bronze: #f7e9dd;
+  --color-gp-dim: #a8a8a0;
+  --color-gp-gold: #a67c14;
+  --color-gp-gold-edge: #c99a1e;
+  --color-gp-silver: #8a8d92;
+  --color-gp-silver-edge: #a8acb2;
+  --color-gp-bronze: #a25a2a;
+  --color-gp-bronze-edge: #c17a45;
+
+  /* Scoring-type badge colors on the events list — three distinct tones so
+   * the type is scannable at a glance. Green reuses the same accent as the
+   * volunteer bonus; blue/plum are new, chosen to sit comfortably in the
+   * same warm, muted light palette. */
+  --color-gp-blue: #3a6b8a;
+  --color-gp-blue-bg: #dfeaf2;
+  --color-gp-plum: #7a4f8f;
+  --color-gp-plum-bg: #efe2f5;
+}
+
+/* Club Grand Prix theme — scoped to .gp-theme (see app/gp/layout.tsx) so it
+ * never affects the light-themed Records pages, even though both happen to
+ * be light palettes right now. Reuses the same token *names* the rest of
+ * the app already styles against (surface, foreground, muted, border,
+ * primary, ...); components like ToggleGroup pick up these values
+ * automatically via the CSS cascade without any gp-specific styling of
+ * their own. */
+.gp-theme {
+  --color-background: #f4f3ee;
+  --color-surface: #ffffff;
+  --color-foreground: #2a2a26;
+  --color-muted: #6a6a62;
+  --color-border: #dddddd;
+
+  --color-primary: #3b6d11;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #3b6d11;
+  --color-secondary-foreground: #ffffff;
+
+  --color-primary-50: #eaf3de;
+  --color-primary-100: #d9e8c8;
 }
 
 @theme inline {
@@ -28,6 +77,20 @@
   --color-secondary-foreground: var(--color-secondary-foreground);
   --color-primary-50: var(--color-primary-50);
   --color-primary-100: var(--color-primary-100);
+  --color-gp-row-gold: var(--color-gp-row-gold);
+  --color-gp-row-silver: var(--color-gp-row-silver);
+  --color-gp-row-bronze: var(--color-gp-row-bronze);
+  --color-gp-dim: var(--color-gp-dim);
+  --color-gp-gold: var(--color-gp-gold);
+  --color-gp-gold-edge: var(--color-gp-gold-edge);
+  --color-gp-silver: var(--color-gp-silver);
+  --color-gp-silver-edge: var(--color-gp-silver-edge);
+  --color-gp-bronze: var(--color-gp-bronze);
+  --color-gp-bronze-edge: var(--color-gp-bronze-edge);
+  --color-gp-blue: var(--color-gp-blue);
+  --color-gp-blue-bg: var(--color-gp-blue-bg);
+  --color-gp-plum: var(--color-gp-plum);
+  --color-gp-plum-bg: var(--color-gp-plum-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

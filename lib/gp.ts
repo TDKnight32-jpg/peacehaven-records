@@ -7,6 +7,7 @@ export interface ClientGpEvent {
   slug: string;
   name: string;
   date: string;
+  isUpcoming: boolean;
   distanceSlug: string | null;
   distanceName: string | null;
   scoringType: string;
@@ -78,6 +79,7 @@ function toClientEvent(row: {
     slug: row.slug,
     name: row.name,
     date: row.date.toISOString(),
+    isUpcoming: row.date.getTime() > Date.now(),
     distanceSlug: row.distance?.slug ?? null,
     distanceName: row.distance?.name ?? null,
     scoringType: row.scoringType,
