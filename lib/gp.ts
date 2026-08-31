@@ -45,9 +45,13 @@ export interface LeaderboardRow {
   runnerName: string;
   runnerSlug: string;
   category: Category;
-  /** Best 8 of `raceEventsEntered` race results — volunteer credits never
-   * displace a race result from this count. */
+  /** Best 8 of `raceEventsEntered` race results, at full value — volunteer
+   * credits never displace a race result from this count. */
   racePoints: number;
+  /** 1 flat point per race beyond the best 8 ("dropped") — a participation
+   * credit, not their actual score in that race. */
+  participationPoints: number;
+  droppedRaceCount: number;
   /** Sum of every volunteer credit, uncapped — always added on top. */
   volunteerPoints: number;
   totalPoints: number;
@@ -57,12 +61,15 @@ export interface LeaderboardRow {
   scores: LeaderboardEventScore[];
 }
 
-/** Each runner's race total is their best 8 race scores out of however many
- * races they've entered (not best 8 of a fixed 16) — so a runner with 5
- * entries counts all 5, and one with 20 counts their top 8. Volunteer
- * credits never compete for one of those 8 slots; every volunteer credit is
+/** Each runner's race total is their best 8 race scores, at full value, out
+ * of however many races they've entered (not best 8 of a fixed 16) — so a
+ * runner with 5 entries counts all 5, and one with 20 counts their top 8.
+ * Every race beyond the best 8 ("dropped") still earns a flat participation
+ * credit rather than nothing, stacking per dropped race. Volunteer credits
+ * never compete for one of the best-8 slots; every volunteer credit is
  * summed uncapped and added on top as a bonus. */
 const BEST_OF = 8;
+const PARTICIPATION_CREDIT = 1;
 
 function toClientEvent(row: {
   id: string;
@@ -140,6 +147,8 @@ export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
         runnerSlug: r.runner.slug,
         category: r.category as Category,
         racePoints: 0,
+        participationPoints: 0,
+        droppedRaceCount: 0,
         volunteerPoints: 0,
         totalPoints: 0,
         raceEventsCounted: 0,
@@ -170,13 +179,16 @@ export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
     });
     row.racePoints = raceScores.slice(0, BEST_OF).reduce((sum, s) => sum + s.points, 0);
 
+    row.droppedRaceCount = Math.max(0, raceScores.length - BEST_OF);
+    row.participationPoints = row.droppedRaceCount * PARTICIPATION_CREDIT;
+
     volunteerScores.forEach((s) => {
       s.counted = true;
     });
     row.volunteerEvents = volunteerScores.length;
     row.volunteerPoints = volunteerScores.reduce((sum, s) => sum + s.points, 0);
 
-    row.totalPoints = row.racePoints + row.volunteerPoints;
+    row.totalPoints = row.racePoints + row.participationPoints + row.volunteerPoints;
     row.scores.sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
   }
 

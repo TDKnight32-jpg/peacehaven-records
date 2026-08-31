@@ -59,6 +59,12 @@ export function GpRunnerPage({
               </p>
               <p className="text-xs text-muted">
                 {row.racePoints} race pts (best {row.raceEventsCounted} of {row.raceEventsEntered})
+                {row.droppedRaceCount > 0 && (
+                  <>
+                    {" "}
+                    + {row.participationPoints} participation ({row.droppedRaceCount} dropped)
+                  </>
+                )}
                 {row.volunteerEvents > 0 && (
                   <>
                     {" "}
@@ -135,8 +141,11 @@ export function GpRunnerPage({
                   >
                     {r.points ?? "—"}
                     {isDropped && (
-                      <span className="block text-[10px] font-normal text-muted" title="Not in the best-8 count">
-                        dropped
+                      <span
+                        className="block text-[10px] font-normal text-muted"
+                        title="Outside the best 8 — this race's real score doesn't count, just a flat participation credit"
+                      >
+                        1 pt (dropped)
                       </span>
                     )}
                   </span>

@@ -114,8 +114,8 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
         </div>
       </div>
       <p className="mt-1 text-sm text-muted">
-        Best 8 race scores count, out of however many races you&apos;ve entered — volunteer credits are added on top,
-        uncapped.
+        Best 8 race scores count at full value; every race beyond that still earns 1 participation point. Volunteer
+        credits are added on top, uncapped.
       </p>
 
       {!hasAnyRows ? (
