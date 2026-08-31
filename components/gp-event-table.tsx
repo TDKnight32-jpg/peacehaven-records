@@ -47,51 +47,59 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
 
   return (
     <div className="mt-3 overflow-x-auto">
-      <div className="flex min-w-[36rem] flex-col gap-2">
-        {results.map((r) => {
-          const tier = medals.get(r.id) ?? null;
-          return (
-            <div
-              key={r.id}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
-                tier
-                  ? MEDAL_CONTAINER[tier]
-                  : "bg-surface border-[0.5px] border-border border-l-[4px] border-l-transparent"
-              }`}
-            >
-              <span className="w-8 shrink-0 text-xs font-medium text-muted">{r.position ?? "—"}</span>
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/gp/runners/${r.runnerSlug}`}
-                  className="truncate font-medium text-foreground hover:text-primary"
-                >
-                  {r.runnerName}
-                </Link>
-                {r.isVolunteer && (
-                  <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary">
-                    Volunteer
-                  </span>
-                )}
-              </div>
-              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-foreground">
-                {r.result ?? "—"}
-              </span>
-              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-muted">
-                {r.rawTime ?? "—"}
-              </span>
-              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-muted">
-                {r.predictedTime ?? "—"}
-              </span>
-              <span
-                className={`w-14 shrink-0 text-right font-mono font-bold text-foreground ${
-                  tier ? MEDAL_POINTS_SIZE[tier] : "text-lg"
+      <div className="min-w-[42rem]">
+        <div className="flex items-center gap-3 px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+          <span className="w-8 shrink-0">Pos</span>
+          <span className="flex-1">Runner</span>
+          <span className="w-24 shrink-0 text-right">Result</span>
+          <span className="w-24 shrink-0 text-right">Raw time</span>
+          <span className="w-24 shrink-0 text-right">Predicted</span>
+          <span className="w-14 shrink-0 text-right">Points</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {results.map((r) => {
+            const tier = medals.get(r.id) ?? null;
+            return (
+              <div
+                key={r.id}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
+                  tier
+                    ? MEDAL_CONTAINER[tier]
+                    : "bg-surface border-[0.5px] border-border border-l-[4px] border-l-transparent"
                 }`}
               >
-                {r.points ?? "—"}
-              </span>
-            </div>
-          );
-        })}
+                <span className="w-8 shrink-0 text-xs font-medium text-muted">{r.position ?? "—"}</span>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/gp/runners/${r.runnerSlug}`}
+                    className="truncate font-medium text-foreground hover:text-primary"
+                  >
+                    {r.runnerName}
+                  </Link>
+                  {r.isVolunteer && (
+                    <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary">
+                      Volunteer
+                    </span>
+                  )}
+                </div>
+                <span className="w-24 shrink-0 text-right font-mono text-sm text-foreground">
+                  {r.result ?? "—"}
+                </span>
+                <span className="w-24 shrink-0 text-right font-mono text-sm text-muted">{r.rawTime ?? "—"}</span>
+                <span className="w-24 shrink-0 text-right font-mono text-sm text-muted">
+                  {r.predictedTime ?? "—"}
+                </span>
+                <span
+                  className={`w-14 shrink-0 text-right font-mono font-bold text-foreground ${
+                    tier ? MEDAL_POINTS_SIZE[tier] : "text-lg"
+                  }`}
+                >
+                  {r.points ?? "—"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,11 @@ function formatDate(iso: string): string {
 
 const CATEGORY_LABEL: Record<"M" | "F", string> = { F: "Women's", M: "Men's" };
 
+/** Column widths (px) shared verbatim between the header row and every data
+ * row via this single constant — not Tailwind width classes — so there is
+ * no possibility of the two drifting out of sync. */
+const COL = { date: 112, result: 96, pos: 32, points: 56 } as const;
+
 /** Strong/mid/weak read on a single counting race's points — a distinct
  * green from the volunteer-bonus accent so the two signals don't blur
  * together. Dropped races and volunteer credits never get tiered: dropped
@@ -67,47 +72,78 @@ export function GpRunnerPage({
       </div>
 
       <div className="mt-8 overflow-x-auto">
-        <div className="flex min-w-[32rem] flex-col gap-2">
-          {results.map((r) => {
-            const isDropped = r.points !== null && !countedEventSlugs.has(r.eventSlug);
-            const isTiered = !isDropped && !r.isVolunteer && r.points !== null;
-            return (
-              <div
-                key={r.id}
-                className={`flex items-center gap-3 rounded-xl border-[0.5px] border-border bg-surface px-4 py-3 ${
-                  isDropped ? "opacity-55" : ""
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <Link href={`/gp/${r.eventSlug}`} className="truncate font-medium text-foreground hover:text-primary">
-                    {r.eventName}
-                  </Link>
-                  {r.isVolunteer && (
-                    <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary">
-                      Volunteer
-                    </span>
-                  )}
-                </div>
-                <span className="w-20 shrink-0 truncate text-right text-sm text-muted">{formatDate(r.eventDate)}</span>
-                <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-foreground">
-                  {r.result ?? "—"}
-                </span>
-                <span className="w-8 shrink-0 text-right text-xs font-medium text-muted">{r.position ?? "—"}</span>
-                <span
-                  className={`w-14 shrink-0 text-right font-mono text-lg font-bold ${
-                    isTiered ? pointsTierClass(r.points!) : "text-foreground"
+        <div className="min-w-[38rem]">
+          <div className="flex items-center gap-3 px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <span className="flex-1">Event</span>
+            <span style={{ width: COL.date, flexShrink: 0 }} className="text-right">
+              Date
+            </span>
+            <span style={{ width: COL.result, flexShrink: 0 }} className="text-right">
+              Result
+            </span>
+            <span style={{ width: COL.pos, flexShrink: 0 }} className="text-right">
+              Pos
+            </span>
+            <span style={{ width: COL.points, flexShrink: 0 }} className="text-right">
+              Points
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {results.map((r) => {
+              const isDropped = r.points !== null && !countedEventSlugs.has(r.eventSlug);
+              const isTiered = !isDropped && !r.isVolunteer && r.points !== null;
+              return (
+                <div
+                  key={r.id}
+                  className={`flex items-center gap-3 rounded-xl border-[0.5px] border-border bg-surface px-4 py-3 ${
+                    isDropped ? "opacity-55" : ""
                   }`}
                 >
-                  {r.points ?? "—"}
-                  {isDropped && (
-                    <span className="block text-[10px] font-normal text-muted" title="Not in the best-8 count">
-                      dropped
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/gp/${r.eventSlug}`}
+                      className="truncate font-medium text-foreground hover:text-primary"
+                    >
+                      {r.eventName}
+                    </Link>
+                    {r.isVolunteer && (
+                      <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary">
+                        Volunteer
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ width: COL.date, flexShrink: 0 }} className="text-right text-sm text-muted">
+                    {formatDate(r.eventDate)}
+                  </span>
+                  <span
+                    style={{ width: COL.result, flexShrink: 0 }}
+                    className="text-right font-mono text-sm text-foreground"
+                  >
+                    {r.result ?? "—"}
+                  </span>
+                  <span
+                    style={{ width: COL.pos, flexShrink: 0 }}
+                    className="text-right text-xs font-medium text-muted"
+                  >
+                    {r.position ?? "—"}
+                  </span>
+                  <span
+                    style={{ width: COL.points, flexShrink: 0 }}
+                    className={`text-right font-mono text-lg font-bold ${
+                      isTiered ? pointsTierClass(r.points!) : "text-foreground"
+                    }`}
+                  >
+                    {r.points ?? "—"}
+                    {isDropped && (
+                      <span className="block text-[10px] font-normal text-muted" title="Not in the best-8 count">
+                        dropped
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
