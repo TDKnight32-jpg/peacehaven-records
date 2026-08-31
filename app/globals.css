@@ -40,6 +40,14 @@
   --color-gp-blue-bg: #dfeaf2;
   --color-gp-plum: #7a4f8f;
   --color-gp-plum-bg: #efe2f5;
+
+  /* Runner-page points tiering (counting races only) — a strong/mid/weak
+   * read on a single score. Deliberately a different green from
+   * --color-primary (the volunteer-bonus accent) so the two signals don't
+   * get confused. */
+  --color-gp-points-strong: #1a8754;
+  --color-gp-points-mid: #b8860b;
+  --color-gp-points-weak: #c1553d;
 }
 
 /* Club Grand Prix theme — scoped to .gp-theme (see app/gp/layout.tsx) so it
@@ -91,6 +99,9 @@
   --color-gp-blue-bg: var(--color-gp-blue-bg);
   --color-gp-plum: var(--color-gp-plum);
   --color-gp-plum-bg: var(--color-gp-plum-bg);
+  --color-gp-points-strong: var(--color-gp-points-strong);
+  --color-gp-points-mid: var(--color-gp-points-mid);
+  --color-gp-points-weak: var(--color-gp-points-weak);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -11,29 +11,60 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+type MedalTier = 1 | 2 | 3 | null;
+
+const MEDAL_CONTAINER: Record<Exclude<MedalTier, null>, string> = {
+  1: "bg-gp-row-gold border-l-[4px] border-l-gp-gold-edge",
+  2: "bg-gp-row-silver border-l-[4px] border-l-gp-silver-edge",
+  3: "bg-gp-row-bronze border-l-[4px] border-l-gp-bronze-edge",
+};
+
+const MEDAL_POINTS_SIZE: Record<Exclude<MedalTier, null>, string> = {
+  1: "text-[26px]",
+  2: "text-[23px]",
+  3: "text-[21px]",
+};
+
+/** Top 3 is by Points (the club's scoring stat), not by the POS column
+ * (raw race finishing position) — those two orderings can differ once
+ * age-grading or DNFs are involved. Volunteer credits are excluded, same as
+ * the leaderboard: they don't compete for a race placing. */
+function pointsMedalByResultId(results: ClientGpResult[]): Map<string, MedalTier> {
+  const ranked = results
+    .filter((r) => !r.isVolunteer && r.points !== null)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+  const medals = new Map<string, MedalTier>();
+  ranked.slice(0, 3).forEach((r, i) => medals.set(r.id, (i + 1) as MedalTier));
+  return medals;
+}
+
 function ResultsTable({ results }: { results: ClientGpResult[] }) {
   if (results.length === 0) {
     return <p className="mt-3 text-sm text-muted">No results recorded for this event.</p>;
   }
+
+  const medals = pointsMedalByResultId(results);
+
   return (
-    <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
-            <th className="px-4 py-2 font-semibold">Pos</th>
-            <th className="px-4 py-2 font-semibold">Runner</th>
-            <th className="px-4 py-2 font-semibold">Result</th>
-            <th className="px-4 py-2 font-semibold">Raw time</th>
-            <th className="px-4 py-2 font-semibold">Predicted</th>
-            <th className="px-4 py-2 text-right font-semibold">Points</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((r) => (
-            <tr key={r.id} className="border-b border-border last:border-0">
-              <td className="px-4 py-2 text-muted">{r.position ?? "—"}</td>
-              <td className="px-4 py-2">
-                <Link href={`/gp/runners/${r.runnerSlug}`} className="font-medium text-foreground hover:text-primary">
+    <div className="mt-3 overflow-x-auto">
+      <div className="flex min-w-[36rem] flex-col gap-2">
+        {results.map((r) => {
+          const tier = medals.get(r.id) ?? null;
+          return (
+            <div
+              key={r.id}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
+                tier
+                  ? MEDAL_CONTAINER[tier]
+                  : "bg-surface border-[0.5px] border-border border-l-[4px] border-l-transparent"
+              }`}
+            >
+              <span className="w-8 shrink-0 text-xs font-medium text-muted">{r.position ?? "—"}</span>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/gp/runners/${r.runnerSlug}`}
+                  className="truncate font-medium text-foreground hover:text-primary"
+                >
                   {r.runnerName}
                 </Link>
                 {r.isVolunteer && (
@@ -41,15 +72,27 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
                     Volunteer
                   </span>
                 )}
-              </td>
-              <td className="px-4 py-2 font-mono text-foreground">{r.result ?? "—"}</td>
-              <td className="px-4 py-2 font-mono text-muted">{r.rawTime ?? "—"}</td>
-              <td className="px-4 py-2 font-mono text-muted">{r.predictedTime ?? "—"}</td>
-              <td className="px-4 py-2 text-right font-mono font-semibold text-primary">{r.points ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-foreground">
+                {r.result ?? "—"}
+              </span>
+              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-muted">
+                {r.rawTime ?? "—"}
+              </span>
+              <span className="w-16 shrink-0 truncate text-right font-mono text-sm text-muted">
+                {r.predictedTime ?? "—"}
+              </span>
+              <span
+                className={`w-14 shrink-0 text-right font-mono font-bold text-foreground ${
+                  tier ? MEDAL_POINTS_SIZE[tier] : "text-lg"
+                }`}
+              >
+                {r.points ?? "—"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
