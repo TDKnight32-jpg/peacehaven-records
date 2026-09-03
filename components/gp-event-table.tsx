@@ -66,6 +66,18 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
   const medals = pointsMedalByResultId(results);
   const clubPositions = clubPositionByResultId(results);
 
+  // Row order follows Club Pos (1, 2, 3, ... top to bottom), not the
+  // overall-field Pos column. Entries with no Club Pos (volunteers, or no
+  // points recorded) sort after every ranked entry, in their original order.
+  const sortedResults = [...results].sort((a, b) => {
+    const posA = clubPositions.get(a.id);
+    const posB = clubPositions.get(b.id);
+    if (posA !== undefined && posB !== undefined) return posA - posB;
+    if (posA !== undefined) return -1;
+    if (posB !== undefined) return 1;
+    return 0;
+  });
+
   return (
     <div className="mt-3 overflow-x-auto">
       <div className="min-w-[46rem]">
@@ -89,7 +101,7 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
           </span>
         </div>
         <div className="flex flex-col gap-2">
-          {results.map((r) => {
+          {sortedResults.map((r) => {
             const tier = medals.get(r.id) ?? null;
             const clubPos = clubPositions.get(r.id) ?? null;
             return (
