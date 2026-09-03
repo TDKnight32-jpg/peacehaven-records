@@ -11,6 +11,12 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** Column widths (px) shared verbatim between the header row and every data
+ * row via this single constant — not Tailwind width classes — so there is
+ * no possibility of the two drifting out of sync (see gp-runner-page.tsx,
+ * which hit exactly that problem with matching class strings). */
+const COL = { pos: 32, clubPos: 72, result: 96, rawTime: 96, predicted: 96, points: 56 } as const;
+
 type MedalTier = 1 | 2 | 3 | null;
 
 const MEDAL_CONTAINER: Record<Exclude<MedalTier, null>, string> = {
@@ -38,27 +44,54 @@ function pointsMedalByResultId(results: ClientGpResult[]): Map<string, MedalTier
   return medals;
 }
 
+/** Each runner's rank among just the club's own entrants in this category —
+ * separate from (and usually much lower than) the POS column, which is
+ * their position in the whole race field. Same points-based ordering as the
+ * medal tiers above, extended to every ranked entrant rather than just the
+ * top 3; volunteer credits aren't a race placing so they don't get one. */
+function clubPositionByResultId(results: ClientGpResult[]): Map<string, number> {
+  const ranked = results
+    .filter((r) => !r.isVolunteer && r.points !== null)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+  const positions = new Map<string, number>();
+  ranked.forEach((r, i) => positions.set(r.id, i + 1));
+  return positions;
+}
+
 function ResultsTable({ results }: { results: ClientGpResult[] }) {
   if (results.length === 0) {
     return <p className="mt-3 text-sm text-muted">No results recorded for this event.</p>;
   }
 
   const medals = pointsMedalByResultId(results);
+  const clubPositions = clubPositionByResultId(results);
 
   return (
     <div className="mt-3 overflow-x-auto">
-      <div className="min-w-[42rem]">
+      <div className="min-w-[46rem]">
         <div className="flex items-center gap-3 px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-          <span className="w-8 shrink-0">Pos</span>
+          <span style={{ width: COL.pos, flexShrink: 0 }}>Pos</span>
           <span className="flex-1">Runner</span>
-          <span className="w-24 shrink-0 text-right">Result</span>
-          <span className="w-24 shrink-0 text-right">Raw time</span>
-          <span className="w-24 shrink-0 text-right">Predicted</span>
-          <span className="w-14 shrink-0 text-right">Points</span>
+          <span style={{ width: COL.clubPos, flexShrink: 0 }} className="text-right">
+            Club Pos
+          </span>
+          <span style={{ width: COL.result, flexShrink: 0 }} className="text-right">
+            Result
+          </span>
+          <span style={{ width: COL.rawTime, flexShrink: 0 }} className="text-right">
+            Raw time
+          </span>
+          <span style={{ width: COL.predicted, flexShrink: 0 }} className="text-right">
+            Predicted
+          </span>
+          <span style={{ width: COL.points, flexShrink: 0 }} className="text-right">
+            Points
+          </span>
         </div>
         <div className="flex flex-col gap-2">
           {results.map((r) => {
             const tier = medals.get(r.id) ?? null;
+            const clubPos = clubPositions.get(r.id) ?? null;
             return (
               <div
                 key={r.id}
@@ -68,7 +101,9 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
                     : "bg-surface border-[0.5px] border-border border-l-[4px] border-l-transparent"
                 }`}
               >
-                <span className="w-8 shrink-0 text-xs font-medium text-muted">{r.position ?? "—"}</span>
+                <span style={{ width: COL.pos, flexShrink: 0 }} className="text-xs font-medium text-muted">
+                  {r.position ?? "—"}
+                </span>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/gp/runners/${r.runnerSlug}`}
@@ -82,15 +117,30 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
                     </span>
                   )}
                 </div>
-                <span className="w-24 shrink-0 text-right font-mono text-sm text-foreground">
+                <span
+                  style={{ width: COL.clubPos, flexShrink: 0 }}
+                  className="text-right text-sm font-semibold text-foreground"
+                >
+                  {clubPos ?? "—"}
+                </span>
+                <span
+                  style={{ width: COL.result, flexShrink: 0 }}
+                  className="text-right font-mono text-sm text-foreground"
+                >
                   {r.result ?? "—"}
                 </span>
-                <span className="w-24 shrink-0 text-right font-mono text-sm text-muted">{r.rawTime ?? "—"}</span>
-                <span className="w-24 shrink-0 text-right font-mono text-sm text-muted">
+                <span style={{ width: COL.rawTime, flexShrink: 0 }} className="text-right font-mono text-sm text-muted">
+                  {r.rawTime ?? "—"}
+                </span>
+                <span
+                  style={{ width: COL.predicted, flexShrink: 0 }}
+                  className="text-right font-mono text-sm text-muted"
+                >
                   {r.predictedTime ?? "—"}
                 </span>
                 <span
-                  className={`w-14 shrink-0 text-right font-mono font-bold text-foreground ${
+                  style={{ width: COL.points, flexShrink: 0 }}
+                  className={`text-right font-mono font-bold text-foreground ${
                     tier ? MEDAL_POINTS_SIZE[tier] : "text-lg"
                   }`}
                 >
