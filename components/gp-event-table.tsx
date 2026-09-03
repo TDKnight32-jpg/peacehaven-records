@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { rankByPoints, type ClientGpEvent, type ClientGpResult } from "@/lib/gp";
+import { rankByPoints, type ClientGpEvent, type ClientGpResult, type StandingMovement } from "@/lib/gp";
+import { MovementIndicator } from "./gp-movement-indicator";
 
 export const SCORING_LABEL: Record<string, string> = {
   FASTEST_TIME: "Fastest Time",
@@ -42,7 +43,13 @@ function pointsMedalByResultId(results: ClientGpResult[]): Map<string, MedalTier
   return medals;
 }
 
-function ResultsTable({ results }: { results: ClientGpResult[] }) {
+function ResultsTable({
+  results,
+  movements,
+}: {
+  results: ClientGpResult[];
+  movements: Record<string, StandingMovement>;
+}) {
   if (results.length === 0) {
     return <p className="mt-3 text-sm text-muted">No results recorded for this event.</p>;
   }
@@ -115,9 +122,10 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
                 </div>
                 <span
                   style={{ width: COL.clubPos, flexShrink: 0 }}
-                  className="text-right text-sm font-semibold text-foreground"
+                  className="flex items-baseline justify-end text-sm font-semibold text-foreground"
                 >
                   {clubPos ?? "—"}
+                  <MovementIndicator movement={movements[`${r.runnerSlug}:${r.category}`]} />
                 </span>
                 <span
                   style={{ width: COL.result, flexShrink: 0 }}
@@ -151,7 +159,15 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
   );
 }
 
-export function GpEventPage({ event, results }: { event: ClientGpEvent; results: ClientGpResult[] }) {
+export function GpEventPage({
+  event,
+  results,
+  movements,
+}: {
+  event: ClientGpEvent;
+  results: ClientGpResult[];
+  movements: Record<string, StandingMovement>;
+}) {
   const women = results.filter((r) => r.category === "F");
   const men = results.filter((r) => r.category === "M");
 
@@ -171,11 +187,11 @@ export function GpEventPage({ event, results }: { event: ClientGpEvent; results:
       <div className="mt-8 flex flex-col gap-8">
         <div>
           <h3 className="text-sm font-semibold text-primary">Women&apos;s</h3>
-          <ResultsTable results={women} />
+          <ResultsTable results={women} movements={movements} />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-primary">Men&apos;s</h3>
-          <ResultsTable results={men} />
+          <ResultsTable results={men} movements={movements} />
         </div>
       </div>
     </div>

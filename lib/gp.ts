@@ -45,6 +45,9 @@ export interface LeaderboardRow {
   runnerName: string;
   runnerSlug: string;
   category: Category;
+  /** Competition ranking within this category — ties share a rank and the
+   * next distinct total skips ahead (1, 2, 2, 4), not a plain 1-of-N index. */
+  rank: number;
   /** Best 8 of `raceEventsEntered` race results, at full value — volunteer
    * credits never displace a race result from this count. */
   racePoints: number;
@@ -59,6 +62,15 @@ export interface LeaderboardRow {
   raceEventsEntered: number;
   volunteerEvents: number;
   scores: LeaderboardEventScore[];
+}
+
+/** Up/down places moved between two standings snapshots for one runner —
+ * see computeMovements(). `direction: null` covers both "no change" and "no
+ * prior snapshot" (nothing to compare against, e.g. a runner's debut race)
+ * — both render with no indicator, so callers don't need to tell them apart. */
+export interface StandingMovement {
+  direction: "up" | "down" | null;
+  places: number;
 }
 
 /** Each runner's race total is their best 8 race scores, at full value, out
@@ -147,9 +159,15 @@ export async function getGpEvent(
   return { event: toClientEvent(row), results };
 }
 
-export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
+/** @param asOf — when given, only counts results from events dated on or
+ * before this date, producing a snapshot of the standings as they stood at
+ * that point in the season (used for the position-movement indicators). */
+export async function getGpLeaderboard(asOf?: Date): Promise<LeaderboardRow[]> {
   const results = await prisma.gpResult.findMany({
-    where: { points: { not: null } },
+    where: {
+      points: { not: null },
+      ...(asOf ? { event: { date: { lte: asOf } } } : {}),
+    },
     include: { runner: true, event: true },
   });
 
@@ -163,6 +181,7 @@ export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
         runnerName: r.runner.name,
         runnerSlug: r.runner.slug,
         category: r.category as Category,
+        rank: 0,
         racePoints: 0,
         participationPoints: 0,
         droppedRaceCount: 0,
@@ -210,7 +229,78 @@ export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
   }
 
   rows.sort((a, b) => a.category.localeCompare(b.category) || b.totalPoints - a.totalPoints);
+
+  // Competition ranking (1, 2, 2, 4) within each category: ties share a
+  // rank, and the next distinct total skips ahead to its 1-indexed position.
+  let position = 0;
+  let lastCategory: Category | null = null;
+  let lastPoints: number | null = null;
+  let lastRank = 0;
+  for (const row of rows) {
+    if (row.category !== lastCategory) {
+      position = 0;
+      lastPoints = null;
+      lastCategory = row.category;
+    }
+    position++;
+    if (row.totalPoints !== lastPoints) {
+      lastRank = position;
+      lastPoints = row.totalPoints;
+    }
+    row.rank = lastRank;
+  }
+
   return rows;
+}
+
+/** Places moved between two standings snapshots, keyed by `${runnerSlug}:${category}`
+ * — slug rather than id so it works equally for LeaderboardRow[] (which has
+ * runnerId) and result rows shaped like ClientGpResult (which don't). */
+export function computeMovements(
+  current: LeaderboardRow[],
+  prior: LeaderboardRow[],
+): Map<string, StandingMovement> {
+  const priorRankByKey = new Map(prior.map((r) => [`${r.runnerSlug}:${r.category}`, r.rank]));
+  const movements = new Map<string, StandingMovement>();
+  for (const row of current) {
+    const key = `${row.runnerSlug}:${row.category}`;
+    const priorRank = priorRankByKey.get(key);
+    if (priorRank === undefined) {
+      movements.set(key, { direction: null, places: 0 });
+      continue;
+    }
+    const delta = priorRank - row.rank; // positive => rank number went down => moved up
+    movements.set(key, delta === 0 ? { direction: null, places: 0 } : { direction: delta > 0 ? "up" : "down", places: Math.abs(delta) });
+  }
+  return movements;
+}
+
+/** The date of the second-most-recent event that actually has results —
+ * i.e. "as of just before the latest event was applied". Events with no
+ * results yet (upcoming, not yet run) don't count as a snapshot point since
+ * there's nothing for them to have changed. Returns null if fewer than two
+ * results-bearing events exist yet. */
+export async function getSecondMostRecentResultsEventDate(): Promise<Date | null> {
+  const events = await prisma.gpEvent.findMany({
+    where: { results: { some: {} } },
+    orderBy: { date: "desc" },
+    take: 2,
+    select: { date: true },
+  });
+  return events[1]?.date ?? null;
+}
+
+/** The date of the results-bearing event immediately before `beforeDate` —
+ * used on an event page to compare standings just after that event to
+ * standings just before it (i.e. as of the *previous* race, not the latest
+ * race overall). Returns null if there's no earlier results-bearing event. */
+export async function getPreviousResultsEventDate(beforeDate: Date): Promise<Date | null> {
+  const prev = await prisma.gpEvent.findFirst({
+    where: { date: { lt: beforeDate }, results: { some: {} } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+  return prev?.date ?? null;
 }
 
 export async function getGpRunner(

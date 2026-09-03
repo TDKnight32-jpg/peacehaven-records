@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { LeaderboardRow } from "@/lib/gp";
+import type { LeaderboardRow, StandingMovement } from "@/lib/gp";
 import { ToggleGroup } from "./toggle-group";
+import { MovementIndicator } from "./gp-movement-indicator";
 
 type CategoryFilter = "ALL" | "M" | "F";
 
@@ -61,11 +62,20 @@ function rankStyle(rank: number): RankStyle {
   }
 }
 
-function LeaderboardRowCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
-  const style = rankStyle(rank);
+function LeaderboardRowCard({
+  row,
+  movement,
+}: {
+  row: LeaderboardRow;
+  movement: StandingMovement | undefined;
+}) {
+  const style = rankStyle(row.rank);
   return (
     <div className={`flex items-center gap-3 rounded-xl px-4 py-3 sm:gap-4 ${style.container}`}>
-      <span className={`w-6 shrink-0 text-right font-bold ${style.rank}`}>{rank}</span>
+      <span className={`flex shrink-0 items-baseline justify-end gap-0.5 ${style.rank}`}>
+        <span className="w-6 text-right font-bold">{row.rank}</span>
+        <MovementIndicator movement={movement} />
+      </span>
       <div className="min-w-0 flex-1">
         <Link
           href={`/gp/runners/${row.runnerSlug}`}
@@ -87,7 +97,13 @@ function LeaderboardRowCard({ row, rank }: { row: LeaderboardRow; rank: number }
   );
 }
 
-export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
+export function GpLeaderboard({
+  rows,
+  movements,
+}: {
+  rows: LeaderboardRow[];
+  movements: Record<string, StandingMovement>;
+}) {
   const [category, setCategory] = useState<CategoryFilter>("ALL");
 
   const categories: ("M" | "F")[] = category === "ALL" ? ["F", "M"] : [category];
@@ -134,8 +150,12 @@ export function GpLeaderboard({ rows }: { rows: LeaderboardRow[] }) {
                     </h3>
                   )}
                   <div className="flex flex-col gap-2">
-                    {section.rows.map((row, i) => (
-                      <LeaderboardRowCard key={row.runnerId} row={row} rank={i + 1} />
+                    {section.rows.map((row) => (
+                      <LeaderboardRowCard
+                        key={row.runnerId}
+                        row={row}
+                        movement={movements[`${row.runnerSlug}:${row.category}`]}
+                      />
                     ))}
                   </div>
                 </div>
