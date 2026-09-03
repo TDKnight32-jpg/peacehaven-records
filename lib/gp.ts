@@ -71,6 +71,23 @@ export interface LeaderboardRow {
 const BEST_OF = 8;
 const PARTICIPATION_CREDIT = 1;
 
+/** Ranks entries by points descending — volunteer credits and entries with
+ * no points excluded, since neither is a race placing — and returns each
+ * entry's 1-indexed rank keyed by id. Shared by every "club position" or
+ * "top 3" computation in the GP section (event pages, and each of a
+ * runner's results below), so they all agree on what "ranked by points"
+ * means. */
+export function rankByPoints<T extends { id: string; isVolunteer: boolean; points: number | null }>(
+  entries: T[],
+): Map<string, number> {
+  const ranked = entries
+    .filter((e) => !e.isVolunteer && e.points !== null)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+  const positions = new Map<string, number>();
+  ranked.forEach((e, i) => positions.set(e.id, i + 1));
+  return positions;
+}
+
 function toClientEvent(row: {
   id: string;
   slug: string;
@@ -198,12 +215,32 @@ export async function getGpLeaderboard(): Promise<LeaderboardRow[]> {
 
 export async function getGpRunner(
   slug: string,
-): Promise<{ runnerId: string; runnerName: string; runnerSlug: string; results: (ClientGpResult & { eventSlug: string; eventName: string; eventDate: string })[]; leaderboardByCategory: Record<Category, LeaderboardRow | null> } | null> {
+): Promise<{ runnerId: string; runnerName: string; runnerSlug: string; results: (ClientGpResult & { eventSlug: string; eventName: string; eventDate: string; clubPosition: number | null })[]; leaderboardByCategory: Record<Category, LeaderboardRow | null> } | null> {
   const runner = await prisma.runner.findUnique({
     where: { slug },
     include: { results: { include: { event: true }, orderBy: { event: { date: "desc" } } } },
   });
   if (!runner) return null;
+
+  // Club Pos (this runner's rank among just the club's entrants for that
+  // event+category — same idea as the event pages' Club Pos column) needs
+  // every other runner's result at each of these events, not just this
+  // runner's own rows, so it's one extra batched query rather than N.
+  const eventIds = [...new Set(runner.results.map((r) => r.eventId))];
+  const fieldResults = await prisma.gpResult.findMany({
+    where: { eventId: { in: eventIds } },
+    select: { id: true, eventId: true, category: true, isVolunteer: true, points: true },
+  });
+  const byEventCategory = new Map<string, typeof fieldResults>();
+  for (const r of fieldResults) {
+    const key = `${r.eventId}:${r.category}`;
+    if (!byEventCategory.has(key)) byEventCategory.set(key, []);
+    byEventCategory.get(key)!.push(r);
+  }
+  const clubPositionByResultId = new Map<string, number>();
+  for (const group of byEventCategory.values()) {
+    for (const [id, rank] of rankByPoints(group)) clubPositionByResultId.set(id, rank);
+  }
 
   const results = runner.results.map((r) => ({
     id: r.id,
@@ -219,6 +256,7 @@ export async function getGpRunner(
     eventSlug: r.event.slug,
     eventName: r.event.name,
     eventDate: r.event.date.toISOString(),
+    clubPosition: clubPositionByResultId.get(r.id) ?? null,
   }));
 
   const leaderboard = await getGpLeaderboard();

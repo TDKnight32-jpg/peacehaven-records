@@ -10,7 +10,7 @@ const CATEGORY_LABEL: Record<"M" | "F", string> = { F: "Women's", M: "Men's" };
 /** Column widths (px) shared verbatim between the header row and every data
  * row via this single constant — not Tailwind width classes — so there is
  * no possibility of the two drifting out of sync. */
-const COL = { date: 112, result: 96, pos: 32, points: 56 } as const;
+const COL = { date: 112, result: 96, pos: 32, clubPos: 72, points: 56 } as const;
 
 /** Strong/mid/weak read on a single counting race's points — a distinct
  * green from the volunteer-bonus accent so the two signals don't blur
@@ -29,7 +29,12 @@ export function GpRunnerPage({
   leaderboardByCategory,
 }: {
   runnerName: string;
-  results: (ClientGpResult & { eventSlug: string; eventName: string; eventDate: string })[];
+  results: (ClientGpResult & {
+    eventSlug: string;
+    eventName: string;
+    eventDate: string;
+    clubPosition: number | null;
+  })[];
   leaderboardByCategory: Record<"M" | "F", LeaderboardRow | null>;
 }) {
   const countedEventSlugs = new Set(
@@ -78,7 +83,7 @@ export function GpRunnerPage({
       </div>
 
       <div className="mt-8 overflow-x-auto">
-        <div className="min-w-[38rem]">
+        <div className="min-w-[43rem]">
           <div className="flex items-center gap-3 px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
             <span className="flex-1">Event</span>
             <span style={{ width: COL.date, flexShrink: 0 }} className="text-right">
@@ -89,6 +94,9 @@ export function GpRunnerPage({
             </span>
             <span style={{ width: COL.pos, flexShrink: 0 }} className="text-right">
               Pos
+            </span>
+            <span style={{ width: COL.clubPos, flexShrink: 0 }} className="text-right">
+              Club Pos
             </span>
             <span style={{ width: COL.points, flexShrink: 0 }} className="text-right">
               Points
@@ -132,6 +140,12 @@ export function GpRunnerPage({
                     className="text-right text-xs font-medium text-muted"
                   >
                     {r.position ?? "—"}
+                  </span>
+                  <span
+                    style={{ width: COL.clubPos, flexShrink: 0 }}
+                    className="text-right text-sm font-semibold text-foreground"
+                  >
+                    {r.clubPosition ?? "—"}
                   </span>
                   <span
                     style={{ width: COL.points, flexShrink: 0 }}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ClientGpEvent, ClientGpResult } from "@/lib/gp";
+import { rankByPoints, type ClientGpEvent, type ClientGpResult } from "@/lib/gp";
 
 export const SCORING_LABEL: Record<string, string> = {
   FASTEST_TIME: "Fastest Time",
@@ -33,29 +33,13 @@ const MEDAL_POINTS_SIZE: Record<Exclude<MedalTier, null>, string> = {
 
 /** Top 3 is by Points (the club's scoring stat), not by the POS column
  * (raw race finishing position) — those two orderings can differ once
- * age-grading or DNFs are involved. Volunteer credits are excluded, same as
- * the leaderboard: they don't compete for a race placing. */
+ * age-grading or DNFs are involved. */
 function pointsMedalByResultId(results: ClientGpResult[]): Map<string, MedalTier> {
-  const ranked = results
-    .filter((r) => !r.isVolunteer && r.points !== null)
-    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
   const medals = new Map<string, MedalTier>();
-  ranked.slice(0, 3).forEach((r, i) => medals.set(r.id, (i + 1) as MedalTier));
+  for (const [id, rank] of rankByPoints(results)) {
+    if (rank <= 3) medals.set(id, rank as MedalTier);
+  }
   return medals;
-}
-
-/** Each runner's rank among just the club's own entrants in this category —
- * separate from (and usually much lower than) the POS column, which is
- * their position in the whole race field. Same points-based ordering as the
- * medal tiers above, extended to every ranked entrant rather than just the
- * top 3; volunteer credits aren't a race placing so they don't get one. */
-function clubPositionByResultId(results: ClientGpResult[]): Map<string, number> {
-  const ranked = results
-    .filter((r) => !r.isVolunteer && r.points !== null)
-    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  const positions = new Map<string, number>();
-  ranked.forEach((r, i) => positions.set(r.id, i + 1));
-  return positions;
 }
 
 function ResultsTable({ results }: { results: ClientGpResult[] }) {
@@ -64,7 +48,7 @@ function ResultsTable({ results }: { results: ClientGpResult[] }) {
   }
 
   const medals = pointsMedalByResultId(results);
-  const clubPositions = clubPositionByResultId(results);
+  const clubPositions = rankByPoints(results);
 
   // Row order follows Club Pos (1, 2, 3, ... top to bottom), not the
   // overall-field Pos column. Entries with no Club Pos (volunteers, or no
