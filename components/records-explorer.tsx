@@ -178,15 +178,17 @@ export function RecordsExplorer({
                       {GENDER_SECTION_LABEL[section.gender]}
                     </h2>
                   )}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {section.cards.map((card) => (
-                      <RecordCard
-                        key={card.key}
-                        title={card.title}
-                        entries={card.entries}
-                        unit={currentDistance?.unit ?? "time"}
-                        footnoteAnchor={(text) => section.footnotes.find((f) => f.text === text)!.id}
-                      />
+                      // The single Overall card spans the row so its podium has room.
+                      <div key={card.key} className={type === "OVERALL" ? "sm:col-span-full" : undefined}>
+                        <RecordCard
+                          title={card.title}
+                          entries={card.entries}
+                          unit={currentDistance?.unit ?? "time"}
+                          footnoteAnchor={(text) => section.footnotes.find((f) => f.text === text)!.id}
+                        />
+                      </div>
                     ))}
                   </div>
                   {section.footnotes.length > 0 && (
