@@ -14,10 +14,13 @@ export function RecordCard({
   title,
   entries,
   unit,
+  footnoteAnchor,
 }: {
   title: string;
   entries: ClientRecord[];
   unit: "time" | "laps";
+  /** Maps footnote text to the id of its entry in the legend below the table. */
+  footnoteAnchor?: (footnote: string) => string;
 }) {
   const filled = entries.filter((e) => e.name);
 
@@ -44,14 +47,15 @@ export function RecordCard({
                   <span>
                     {filled.length > 1 && "· "}
                     {e.event}
-                    {e.footnote && (
-                      <span
+                    {e.footnote && footnoteAnchor && (
+                      <a
+                        href={`#${footnoteAnchor(e.footnote)}`}
                         title={e.footnote}
-                        aria-label={e.footnote}
-                        className="ml-0.5 cursor-help underline decoration-dotted decoration-muted"
+                        aria-label={`Footnote: ${e.footnote}`}
+                        className="ml-0.5 font-semibold text-secondary no-underline hover:underline"
                       >
-                        *
-                      </span>
+                        {e.footnoteSymbol ?? "*"}
+                      </a>
                     )}
                   </span>
                 )}

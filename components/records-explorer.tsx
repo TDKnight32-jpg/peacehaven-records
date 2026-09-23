@@ -32,6 +32,31 @@ function categoryRank(cat: string): number {
 
 const GENDER_SECTION_LABEL: Record<Gender, string> = { F: "Women's", M: "Men's" };
 
+interface SectionFootnote {
+  id: string;
+  symbol: string;
+  text: string;
+}
+
+/** Footnotes used by a section's cards, in the order they first appear —
+ * rendered as a legend below that section, like the notes under each table
+ * in the spreadsheet. Keyed by text, not symbol: the sheet reuses "**" for
+ * unrelated footnotes. */
+function collectFootnotes(gender: Gender, cards: { entries: ClientRecord[] }[]): SectionFootnote[] {
+  const byText = new Map<string, SectionFootnote>();
+  for (const card of cards) {
+    for (const e of card.entries) {
+      if (!e.name || !e.footnote || byText.has(e.footnote)) continue;
+      byText.set(e.footnote, {
+        id: `footnote-${gender}-${byText.size + 1}`,
+        symbol: e.footnoteSymbol ?? "*",
+        text: e.footnote,
+      });
+    }
+  }
+  return [...byText.values()];
+}
+
 export function RecordsExplorer({
   distances,
   records,
@@ -110,17 +135,13 @@ export function RecordsExplorer({
               title: category,
               entries: entries.sort((a, b) => a.rank - b.rank),
             }));
-          return { gender: g, cards };
+          return { gender: g, cards, footnotes: collectFootnotes(g, cards) };
         })
       : genders.map((g) => {
           const entries = filtered.filter((r) => r.gender === g).sort((a, b) => a.rank - b.rank);
-          return {
-            gender: g,
-            cards:
-              entries.length > 0
-                ? [{ key: "overall", title: `${GENDER_SECTION_LABEL[g]} Overall`, entries }]
-                : [],
-          };
+          const cards =
+            entries.length > 0 ? [{ key: "overall", title: `${GENDER_SECTION_LABEL[g]} Overall`, entries }] : [];
+          return { gender: g, cards, footnotes: collectFootnotes(g, cards) };
         });
 
   const hasAnyCards = sections.some((s) => s.cards.length > 0);
@@ -164,9 +185,20 @@ export function RecordsExplorer({
                         title={card.title}
                         entries={card.entries}
                         unit={currentDistance?.unit ?? "time"}
+                        footnoteAnchor={(text) => section.footnotes.find((f) => f.text === text)!.id}
                       />
                     ))}
                   </div>
+                  {section.footnotes.length > 0 && (
+                    <ul className="mt-3 flex flex-col gap-1 text-xs text-muted">
+                      {section.footnotes.map((f) => (
+                        <li key={f.id} id={f.id} className="scroll-mt-4 target:text-foreground">
+                          <span className="mr-1 font-semibold text-secondary">{f.symbol}</span>
+                          {f.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ),
           )}

@@ -14,6 +14,7 @@ export interface ClientRecord {
   event: string | null;
   date: string | null;
   footnote: string | null;
+  footnoteSymbol: string | null;
 }
 
 export interface DistanceMeta {
@@ -63,6 +64,7 @@ export async function getRecordsData(): Promise<{
       event: r.event,
       date: r.date ? r.date.toISOString() : null,
       footnote: r.footnote?.text ?? null,
+      footnoteSymbol: r.footnote?.symbol ?? null,
     };
   });
 
