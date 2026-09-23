@@ -11,7 +11,7 @@ import { DISTANCES } from "../lib/distances";
 import { prisma } from "../lib/db";
 
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFnaq0-Sg-b0RvsZJXdJh-0h1TdpqGoz89_K8pfXnr51Z9CkeXH0vDGk0xsXTgx3QzEs_v1-n-Hll5/pub?output=csv&gid=1959397949";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFnaq0-Sg-b0RvsZJXdJh-0h1TdpqGoz89_K8pfXnr51Z9CkeXH0vDGk0xsXTgx3QzEs_v1-n-Hll5/pub?gid=1959397949&single=true&output=csv";
 
 async function fetchCsv(): Promise<string> {
   const res = await fetch(CSV_URL);
