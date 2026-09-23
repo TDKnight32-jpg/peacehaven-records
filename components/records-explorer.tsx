@@ -82,7 +82,7 @@ export function RecordsExplorer({
     () => (searchParams.get("gender") as GenderFilter) || "ALL",
   );
   const [type, setType] = useState<RecordType>(
-    () => (searchParams.get("type") as RecordType) || "AGE_GROUP",
+    () => (searchParams.get("type") as RecordType) || "OVERALL",
   );
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
 
@@ -90,7 +90,7 @@ export function RecordsExplorer({
     const params = new URLSearchParams();
     if (distanceSlug) params.set("distance", distanceSlug);
     if (gender !== "ALL") params.set("gender", gender);
-    if (type !== "AGE_GROUP") params.set("type", type);
+    if (type !== "OVERALL") params.set("type", type);
     if (query) params.set("q", query);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
