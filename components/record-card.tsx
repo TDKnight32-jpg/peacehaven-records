@@ -56,21 +56,22 @@ export function RecordCard({
   entries,
   unit,
   footnoteAnchor,
+  podium = false,
 }: {
   title: string;
   entries: ClientRecord[];
   unit: "time" | "laps";
   /** Maps footnote text to the id of its entry in the legend below the table. */
   footnoteAnchor?: (footnote: string) => string;
+  /** Lay out a top 3 as a side-by-side podium (used for the Overall cards). */
+  podium?: boolean;
 }) {
   const filled = entries.filter((e) => e.name);
-  const isPodium = filled.length > 1 && filled.every((e) => e.rank <= 3);
-
-  const performance = (e: ClientRecord) => (unit === "laps" ? `${e.laps} lap${e.laps === 1 ? "" : "s"}` : e.time);
+  const isPodium = podium && filled.length > 1 && filled.every((e) => e.rank <= 3);
 
   // In a podium column the event and date sit on separate lines, so the
   // "·" before the date is only shown while the podium is stacked.
-  const details = (e: ClientRecord, podium: boolean) => (
+  const details = (e: ClientRecord) => (
     <>
       {e.event && (
         <span>
@@ -89,7 +90,7 @@ export function RecordCard({
       )}
       {e.date && (
         <span>
-          <span className={podium ? "@sm:hidden" : undefined}>· </span>
+          <span className="@sm:hidden">· </span>
           {formatDate(e.date)}
         </span>
       )}
@@ -97,7 +98,7 @@ export function RecordCard({
   );
 
   return (
-    <div className="@container rounded-xl border border-border bg-surface p-4 shadow-sm">
+    <div className={`${isPodium ? "@container " : ""}rounded-xl border border-border bg-surface p-4 shadow-sm`}>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
       {filled.length === 0 ? (
         <p className="mt-3 text-sm text-muted">No record set</p>
@@ -112,14 +113,16 @@ export function RecordCard({
               >
                 <div className="flex items-baseline justify-between gap-2 @sm:flex-col @sm:items-center @sm:gap-0.5">
                   <span className={`font-medium text-foreground @sm:break-words ${style.name}`}>{e.name}</span>
-                  <span className={`font-mono font-semibold text-primary ${style.time}`}>{performance(e)}</span>
+                  <span className={`font-mono font-semibold text-primary ${style.time}`}>
+                    {unit === "laps" ? `${e.laps} lap${e.laps === 1 ? "" : "s"}` : e.time}
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted @sm:flex-col @sm:items-center">
                   <span className={`font-semibold ${style.rank}`}>
                     {RANK_LABEL[e.rank]}
                     {e.event && <span className="@sm:hidden"> ·</span>}
                   </span>
-                  {details(e, true)}
+                  {details(e)}
                 </div>
               </li>
             );
@@ -131,14 +134,31 @@ export function RecordCard({
             <li key={e.id} className="flex flex-col gap-0.5">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-medium text-foreground">{e.name}</span>
-                <span className="font-mono text-sm font-semibold text-primary">{performance(e)}</span>
+                <span className="font-mono text-sm font-semibold text-primary">
+                  {unit === "laps" ? `${e.laps} lap${e.laps === 1 ? "" : "s"}` : e.time}
+                </span>
               </div>
               <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted">
                 {filled.length > 1 && (
                   <span className="font-semibold text-secondary">{RANK_LABEL[e.rank] ?? `${e.rank}th`}</span>
                 )}
-                {filled.length > 1 && e.event && "· "}
-                {details(e, false)}
+                {e.event && (
+                  <span>
+                    {filled.length > 1 && "· "}
+                    {e.event}
+                    {e.footnote && footnoteAnchor && (
+                      <a
+                        href={`#${footnoteAnchor(e.footnote)}`}
+                        title={e.footnote}
+                        aria-label={`Footnote: ${e.footnote}`}
+                        className="ml-0.5 font-semibold text-secondary no-underline hover:underline"
+                      >
+                        {e.footnoteSymbol ?? "*"}
+                      </a>
+                    )}
+                  </span>
+                )}
+                {e.date && <span>· {formatDate(e.date)}</span>}
               </div>
             </li>
           ))}

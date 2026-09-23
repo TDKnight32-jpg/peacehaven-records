@@ -178,7 +178,7 @@ export function RecordsExplorer({
                       {GENDER_SECTION_LABEL[section.gender]}
                     </h2>
                   )}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {section.cards.map((card) => (
                       // The single Overall card spans the row so its podium has room.
                       <div key={card.key} className={type === "OVERALL" ? "sm:col-span-full" : undefined}>
@@ -187,6 +187,7 @@ export function RecordsExplorer({
                           entries={card.entries}
                           unit={currentDistance?.unit ?? "time"}
                           footnoteAnchor={(text) => section.footnotes.find((f) => f.text === text)!.id}
+                          podium={type === "OVERALL"}
                         />
                       </div>
                     ))}
