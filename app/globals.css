@@ -111,3 +111,48 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Grand Prix news ticker (components/gp-news-ticker.tsx). The track holds
+ * two identical copies of the headlines; sliding it left by 50% moves
+ * exactly one copy's width, so the loop restarts seamlessly. Duration is
+ * set from the measured width via --gp-ticker-duration. Hover-to-pause is
+ * limited to real hover devices — on phones a tap "sticks" :hover, which
+ * would stop the tap-again-to-resume toggle from working. */
+@keyframes gp-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.gp-ticker-track {
+  animation: gp-ticker-scroll var(--gp-ticker-duration, 60s) linear infinite;
+}
+
+.gp-ticker[data-paused] .gp-ticker-track {
+  animation-play-state: paused;
+}
+
+@media (hover: hover) {
+  .gp-ticker:hover .gp-ticker-track {
+    animation-play-state: paused;
+  }
+}
+
+/* "Reduce motion" setting: no animation — a still strip the visitor can
+ * swipe/scroll sideways through instead, with no duplicate copy or pause
+ * button (nothing to pause). */
+@media (prefers-reduced-motion: reduce) {
+  .gp-ticker-track {
+    animation: none;
+  }
+  .gp-ticker-viewport {
+    overflow-x: auto;
+  }
+  .gp-ticker-dup,
+  .gp-ticker-toggle {
+    display: none;
+  }
+}

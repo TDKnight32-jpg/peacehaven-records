@@ -1,6 +1,13 @@
 import { Suspense } from "react";
-import { getGpLeaderboard, getSecondMostRecentResultsEventDate, computeMovements } from "@/lib/gp";
+import {
+  getGpLeaderboard,
+  getSecondMostRecentResultsEventDate,
+  getLatestResultsEvent,
+  computeMovements,
+} from "@/lib/gp";
+import { buildHeadlines } from "@/lib/gp-headlines";
 import { GpLeaderboard } from "@/components/gp-leaderboard";
+import { GpNewsTicker } from "@/components/gp-news-ticker";
 
 // Same as the records hub: updated by re-running the import script directly
 // against the production DB, not by redeploying.
@@ -17,9 +24,21 @@ export default async function GpPage() {
   // boundary — pass a plain object instead.
   const movements = Object.fromEntries(computeMovements(rows, priorRows));
 
+  // The news ticker compares the same two snapshots as the movement arrows,
+  // so its headlines always agree with the table below it.
+  const latest = await getLatestResultsEvent();
+  const headlines = buildHeadlines({
+    current: rows,
+    prior: priorRows,
+    latestEvent: latest && { name: latest.event.name, results: latest.results },
+  });
+
   return (
-    <Suspense fallback={null}>
-      <GpLeaderboard rows={rows} movements={movements} />
-    </Suspense>
+    <>
+      <GpNewsTicker headlines={headlines} />
+      <Suspense fallback={null}>
+        <GpLeaderboard rows={rows} movements={movements} />
+      </Suspense>
+    </>
   );
 }

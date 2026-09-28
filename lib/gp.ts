@@ -290,6 +290,17 @@ export async function getSecondMostRecentResultsEventDate(): Promise<Date | null
   return events[1]?.date ?? null;
 }
 
+/** The most recent event that actually has results (skipping upcoming,
+ * not-yet-run events), with those results — or null before the first race. */
+export async function getLatestResultsEvent(): Promise<{ event: ClientGpEvent; results: ClientGpResult[] } | null> {
+  const latest = await prisma.gpEvent.findFirst({
+    where: { results: { some: {} } },
+    orderBy: { date: "desc" },
+    select: { slug: true },
+  });
+  return latest ? getGpEvent(latest.slug) : null;
+}
+
 /** The date of the results-bearing event immediately before `beforeDate` —
  * used on an event page to compare standings just after that event to
  * standings just before it (i.e. as of the *previous* race, not the latest
