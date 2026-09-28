@@ -12,6 +12,7 @@ export default async function Page(props: PageProps<"/gp/runners/[runnerSlug]">)
   return (
     <GpRunnerPage
       runnerName={data.runnerName}
+      isFormerMember={data.isFormerMember}
       results={data.results}
       leaderboardByCategory={data.leaderboardByCategory}
     />

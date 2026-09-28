@@ -38,6 +38,16 @@ One-time setup (env vars, `npm install`) is covered in `README.md` — this assu
 
 5. **Spot-check the live site** — open `/gp` and the event's page, confirm the new results are there.
 
+## When a runner leaves the club
+
+```bash
+npm run set-member -- sarah-isaacs left       # the slug is the end of their runner page address
+npm run set-member -- sarah-isaacs rejoined   # undo, if they come back
+npm run set-member -- --list                  # who's currently marked as a former member
+```
+
+A former member drops off the overall leaderboard and the news ticker, and everyone below them moves up a place. Nothing else changes: their results stay in the database, on every event page (Club Pos included), and on their own runner page, which shows "Former member · not on the current leaderboard". No need to touch the Google Sheet — leave their rows in. The import never changes this setting and never deletes a former member's results, even if their rows are later removed from the sheet.
+
 ## When to come back to Claude Code instead
 
 The dry run is designed to fail loudly rather than let something questionable through. If you see any of these, stop and ask Claude Code rather than pushing through:

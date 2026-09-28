@@ -25,10 +25,12 @@ function pointsTierClass(points: number): string {
 
 export function GpRunnerPage({
   runnerName,
+  isFormerMember,
   results,
   leaderboardByCategory,
 }: {
   runnerName: string;
+  isFormerMember: boolean;
   results: (ClientGpResult & {
     eventSlug: string;
     eventName: string;
@@ -77,6 +79,9 @@ export function GpRunnerPage({
                   </>
                 )}
               </p>
+              {isFormerMember && (
+                <p className="mt-2 text-xs font-medium text-muted">Former member · not on the current leaderboard</p>
+              )}
             </div>
           );
         })}

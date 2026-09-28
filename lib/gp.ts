@@ -26,6 +26,10 @@ export interface ClientGpResult {
   position: number | null;
   points: number | null;
   isVolunteer: boolean;
+  /** The runner has left the club (see Runner.isFormerMember) — their
+   * result still shows everywhere race-by-race, but they're kept out of
+   * the overall leaderboard and the news ticker. */
+  runnerIsFormerMember: boolean;
 }
 
 export interface LeaderboardEventScore {
@@ -153,6 +157,7 @@ export async function getGpEvent(
       position: r.position,
       points: r.points,
       isVolunteer: r.isVolunteer,
+      runnerIsFormerMember: r.runner.isFormerMember,
     }))
     .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
 
@@ -161,12 +166,22 @@ export async function getGpEvent(
 
 /** @param asOf — when given, only counts results from events dated on or
  * before this date, producing a snapshot of the standings as they stood at
- * that point in the season (used for the position-movement indicators). */
-export async function getGpLeaderboard(asOf?: Date): Promise<LeaderboardRow[]> {
+ * that point in the season (used for the position-movement indicators).
+ *
+ * Former members (Runner.isFormerMember) are left out *before* ranking, in
+ * every snapshot alike — so the runners below them close the gap, and
+ * nobody gets a spurious ▲ just because someone left. `includeFormerMembers`
+ * is only for a former member's own runner page, which shows their totals
+ * but never their rank. */
+export async function getGpLeaderboard(
+  asOf?: Date,
+  { includeFormerMembers = false }: { includeFormerMembers?: boolean } = {},
+): Promise<LeaderboardRow[]> {
   const results = await prisma.gpResult.findMany({
     where: {
       points: { not: null },
       ...(asOf ? { event: { date: { lte: asOf } } } : {}),
+      ...(includeFormerMembers ? {} : { runner: { isFormerMember: false } }),
     },
     include: { runner: true, event: true },
   });
@@ -316,7 +331,7 @@ export async function getPreviousResultsEventDate(beforeDate: Date): Promise<Dat
 
 export async function getGpRunner(
   slug: string,
-): Promise<{ runnerId: string; runnerName: string; runnerSlug: string; results: (ClientGpResult & { eventSlug: string; eventName: string; eventDate: string; clubPosition: number | null })[]; leaderboardByCategory: Record<Category, LeaderboardRow | null> } | null> {
+): Promise<{ runnerId: string; runnerName: string; runnerSlug: string; isFormerMember: boolean; results: (ClientGpResult & { eventSlug: string; eventName: string; eventDate: string; clubPosition: number | null })[]; leaderboardByCategory: Record<Category, LeaderboardRow | null> } | null> {
   const runner = await prisma.runner.findUnique({
     where: { slug },
     include: { results: { include: { event: true }, orderBy: { event: { date: "desc" } } } },
@@ -354,13 +369,16 @@ export async function getGpRunner(
     position: r.position,
     points: r.points,
     isVolunteer: r.isVolunteer,
+    runnerIsFormerMember: runner.isFormerMember,
     eventSlug: r.event.slug,
     eventName: r.event.name,
     eventDate: r.event.date.toISOString(),
     clubPosition: clubPositionByResultId.get(r.id) ?? null,
   }));
 
-  const leaderboard = await getGpLeaderboard();
+  // A former member isn't on the leaderboard, but their own page still shows
+  // their totals — so include them here (the page never shows `rank`).
+  const leaderboard = await getGpLeaderboard(undefined, { includeFormerMembers: runner.isFormerMember });
   const leaderboardByCategory: Record<Category, LeaderboardRow | null> = {
     M: leaderboard.find((row) => row.runnerId === runner.id && row.category === "M") ?? null,
     F: leaderboard.find((row) => row.runnerId === runner.id && row.category === "F") ?? null,
@@ -370,6 +388,7 @@ export async function getGpRunner(
     runnerId: runner.id,
     runnerName: runner.name,
     runnerSlug: runner.slug,
+    isFormerMember: runner.isFormerMember,
     results,
     leaderboardByCategory,
   };

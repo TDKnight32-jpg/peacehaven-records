@@ -188,8 +188,11 @@ export function buildHeadlines(input: {
   prior: LeaderboardRow[];
   latestEvent: { name: string; results: ClientGpResult[] } | null;
 }): Headline[] {
-  const { current, prior, latestEvent } = input;
-  if (!latestEvent || current.length === 0) return [];
+  const { current, prior } = input;
+  if (!input.latestEvent || current.length === 0) return [];
+  // Former members are already absent from the leaderboard snapshots; keep
+  // them out of the race-level headlines (top score, volunteers) too.
+  const latestEvent = { ...input.latestEvent, results: input.latestEvent.results.filter((r) => !r.runnerIsFormerMember) };
 
   // Sheet tab names sometimes carry stray double spaces ("Seaford  Beach parkrun").
   const eventName = latestEvent.name.replace(/\s+/g, " ").trim();

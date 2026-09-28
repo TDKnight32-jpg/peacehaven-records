@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "import": "tsx scripts/import-records.ts",
-    "import-gp": "tsx scripts/import-gp.ts"
+    "import-gp": "tsx scripts/import-gp.ts",
+    "set-member": "tsx scripts/set-member.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

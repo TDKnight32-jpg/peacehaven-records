@@ -77,6 +77,11 @@ model Runner {
   id      String     @id @default(cuid())
   name    String
   slug    String     @unique
+  // Left the club: excluded from the overall GP leaderboard and news ticker,
+  // but their results stay (event pages, Club Pos, their own runner page).
+  // Set only via scripts/set-member.ts — the GP import never changes it on
+  // an existing runner, and never deletes a former member's results.
+  isFormerMember Boolean @default(false)
   results GpResult[]
 }
 
