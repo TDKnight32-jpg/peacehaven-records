@@ -62,11 +62,37 @@ function rankStyle(rank: number): RankStyle {
   }
 }
 
+/** "2 pts behind Trixie Nisbet" — the gap to whoever is directly above on
+ * this table (same totals the leaderboard shows, so the same scoring
+ * rules). Nothing for the leader(s); "Level on points with …" for a tie. */
+function CatchUpNote({ row, above }: { row: LeaderboardRow; above: LeaderboardRow | null }) {
+  if (!above || row.rank === 1) return null;
+  const gap = above.totalPoints - row.totalPoints;
+  return (
+    <p className="mt-0.5 truncate text-xs text-muted">
+      {gap === 0 ? (
+        <>
+          <span className="font-semibold text-foreground">Level on points</span> with {above.runnerName}
+        </>
+      ) : (
+        <>
+          <span className="font-semibold text-foreground">
+            {gap} pt{gap === 1 ? "" : "s"}
+          </span>{" "}
+          behind {above.runnerName}
+        </>
+      )}
+    </p>
+  );
+}
+
 function LeaderboardRowCard({
   row,
+  above,
   movement,
 }: {
   row: LeaderboardRow;
+  above: LeaderboardRow | null;
   movement: StandingMovement | undefined;
 }) {
   const style = rankStyle(row.rank);
@@ -91,6 +117,7 @@ function LeaderboardRowCard({
             <span className="text-gp-dim"> · —</span>
           )}
         </p>
+        <CatchUpNote row={row} above={above} />
       </div>
       <span className={`shrink-0 font-mono font-bold ${style.points}`}>{row.totalPoints}</span>
     </div>
@@ -150,10 +177,11 @@ export function GpLeaderboard({
                     </h3>
                   )}
                   <div className="flex flex-col gap-2">
-                    {section.rows.map((row) => (
+                    {section.rows.map((row, i) => (
                       <LeaderboardRowCard
                         key={row.runnerId}
                         row={row}
+                        above={i > 0 ? section.rows[i - 1] : null}
                         movement={movements[`${row.runnerSlug}:${row.category}`]}
                       />
                     ))}

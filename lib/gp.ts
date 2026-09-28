@@ -316,6 +316,28 @@ export async function getLatestResultsEvent(): Promise<{ event: ClientGpEvent; r
   return latest ? getGpEvent(latest.slug) : null;
 }
 
+/** The next race to show in the homepage's "Next race" banner: the earliest
+ * event with no results yet, dated after the latest event that has results
+ * — so a race cancelled mid-season (never given results) doesn't get stuck
+ * as "next" forever, while a race that's been run but not yet imported
+ * still shows until its results arrive. Null once the season's done. */
+export async function getNextGpEvent(): Promise<ClientGpEvent | null> {
+  const latestWithResults = await prisma.gpEvent.findFirst({
+    where: { results: { some: {} } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+  const row = await prisma.gpEvent.findFirst({
+    where: {
+      results: { none: {} },
+      ...(latestWithResults ? { date: { gt: latestWithResults.date } } : {}),
+    },
+    orderBy: { date: "asc" },
+    include: { distance: true },
+  });
+  return row ? toClientEvent(row) : null;
+}
+
 /** The date of the results-bearing event immediately before `beforeDate` —
  * used on an event page to compare standings just after that event to
  * standings just before it (i.e. as of the *previous* race, not the latest

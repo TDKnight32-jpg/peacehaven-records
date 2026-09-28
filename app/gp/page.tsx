@@ -3,11 +3,13 @@ import {
   getGpLeaderboard,
   getSecondMostRecentResultsEventDate,
   getLatestResultsEvent,
+  getNextGpEvent,
   computeMovements,
 } from "@/lib/gp";
 import { buildHeadlines } from "@/lib/gp-headlines";
 import { GpLeaderboard } from "@/components/gp-leaderboard";
 import { GpNewsTicker } from "@/components/gp-news-ticker";
+import { GpNextRace } from "@/components/gp-next-race";
 
 // Same as the records hub: updated by re-running the import script directly
 // against the production DB, not by redeploying.
@@ -33,9 +35,12 @@ export default async function GpPage() {
     latestEvent: latest && { name: latest.event.name, results: latest.results },
   });
 
+  const nextRace = await getNextGpEvent();
+
   return (
     <>
       <GpNewsTicker headlines={headlines} />
+      <GpNextRace event={nextRace} />
       <Suspense fallback={null}>
         <GpLeaderboard rows={rows} movements={movements} />
       </Suspense>
