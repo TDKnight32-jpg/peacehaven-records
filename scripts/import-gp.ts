@@ -158,6 +158,10 @@ interface OrphanRunner {
  * any C25K data (progress, badges, cohort enrollment) are never orphans —
  * C25K runners legitimately have zero GP results.
  *
+ * Former members (Runner.isFormerMember) are never touched: their results
+ * are kept even if their rows disappear from the sheet (reported as
+ * `keptFormerMemberResults` instead), and they're never orphans.
+ *
  * Computed purely from the sheet + DB (no writes), so the dry run can
  * preview exactly what `--write` will remove.
  */
@@ -174,15 +178,28 @@ async function findRemovals(raceTabs: RaceTabResult[]) {
   const managedEventNames = new Set(raceTabs.map((t) => normalizeWhitespace(t.tabName)));
 
   const dbResults = await prisma.gpResult.findMany({
-    select: { id: true, runnerId: true, category: true, event: { select: { name: true } }, runner: { select: { name: true } } },
+    select: {
+      id: true,
+      runnerId: true,
+      category: true,
+      event: { select: { name: true } },
+      runner: { select: { name: true, isFormerMember: true } },
+    },
   });
   const staleResults: StaleResult[] = [];
+  const keptFormerMemberResults: StaleResult[] = [];
   const runnersWithRemainingResults = new Set<string>();
   for (const r of dbResults) {
     const eventKey = normalizeWhitespace(r.event.name);
     const key = `${eventKey}|${normalizeRunnerName(r.runner.name)}|${r.category}`;
     if (managedEventNames.has(eventKey) && !sheetKeys.has(key)) {
-      staleResults.push({ id: r.id, eventName: r.event.name, runnerName: r.runner.name, category: r.category });
+      const entry = { id: r.id, eventName: r.event.name, runnerName: r.runner.name, category: r.category };
+      if (r.runner.isFormerMember) {
+        keptFormerMemberResults.push(entry);
+        runnersWithRemainingResults.add(r.runnerId);
+      } else {
+        staleResults.push(entry);
+      }
     } else {
       runnersWithRemainingResults.add(r.runnerId);
     }
@@ -191,6 +208,7 @@ async function findRemovals(raceTabs: RaceTabResult[]) {
   const candidates = await prisma.runner.findMany({
     where: {
       email: null,
+      isFormerMember: false,
       c25kProgress: { none: {} },
       badges: { none: {} },
       cohortEnrollments: { none: {} },
@@ -201,7 +219,7 @@ async function findRemovals(raceTabs: RaceTabResult[]) {
     (r) => !runnersWithRemainingResults.has(r.id) && !namesInBatch.has(normalizeRunnerName(r.name)),
   );
 
-  return { staleResults, orphanRunners };
+  return { staleResults, orphanRunners, keptFormerMemberResults };
 }
 
 function buildReport(events: ParsedGpEvent[], raceTabs: RaceTabResult[]) {
@@ -330,7 +348,11 @@ async function main() {
     );
   }
 
-  const { staleResults, orphanRunners } = await findRemovals(raceTabs);
+  const { staleResults, orphanRunners, keptFormerMemberResults } = await findRemovals(raceTabs);
+  if (keptFormerMemberResults.length > 0) {
+    console.log(`\nKept (former member — never removed), though no longer in the sheet:`);
+    for (const r of keptFormerMemberResults) console.log(`    [${r.eventName}] ${r.runnerName} (${r.category})`);
+  }
   if (staleResults.length > 0 || orphanRunners.length > 0) {
     console.log(`\n${write ? "Will remove" : "Would remove (with --write)"}:`);
     console.log(`  ${staleResults.length} result(s) no longer in the sheet:`);
@@ -448,11 +470,14 @@ async function main() {
   // all-or-nothing. The runner delete re-checks "no results, no email, no
   // C25K data" in the query itself rather than trusting the earlier snapshot.
   const [removedResults, removedRunners] = await prisma.$transaction([
-    prisma.gpResult.deleteMany({ where: { id: { in: staleResults.map((r) => r.id) } } }),
+    prisma.gpResult.deleteMany({
+      where: { id: { in: staleResults.map((r) => r.id) }, runner: { isFormerMember: false } },
+    }),
     prisma.runner.deleteMany({
       where: {
         id: { in: orphanRunners.map((r) => r.id) },
         email: null,
+        isFormerMember: false,
         results: { none: {} },
         c25kProgress: { none: {} },
         badges: { none: {} },

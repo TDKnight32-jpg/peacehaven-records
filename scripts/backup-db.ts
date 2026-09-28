@@ -7,24 +7,22 @@ import { prisma } from "../lib/db";
  * pg_dump (not installed locally) to run before any risky database change.
  * Read-only against the database. The output contains runner emails, so
  * `backups/` is gitignored and must never be committed.
+ *
+ * Reads tables straight from the database (not via the generated Prisma
+ * models), so it captures exactly what's there — including columns or
+ * tables the code doesn't know about yet, e.g. mid-migration.
  */
 async function main() {
-  const tables = {
-    distance: await prisma.distance.findMany(),
-    footnote: await prisma.footnote.findMany(),
-    recordEntry: await prisma.recordEntry.findMany(),
-    recordHistoryEntry: await prisma.recordHistoryEntry.findMany(),
-    runner: await prisma.runner.findMany(),
-    gpEvent: await prisma.gpEvent.findMany(),
-    gpResult: await prisma.gpResult.findMany(),
-    cohort: await prisma.cohort.findMany(),
-    cohortRunner: await prisma.cohortRunner.findMany(),
-    c25kWeek: await prisma.c25kWeek.findMany(),
-    c25kSession: await prisma.c25kSession.findMany(),
-    runnerProgress: await prisma.runnerProgress.findMany(),
-    badge: await prisma.badge.findMany(),
-    runnerBadge: await prisma.runnerBadge.findMany(),
-  };
+  const tableRows = await prisma.$queryRaw<{ table_name: string }[]>`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    ORDER BY table_name`;
+
+  const tables: Record<string, unknown[]> = {};
+  for (const { table_name } of tableRows) {
+    // Names come from the database's own catalogue, not user input.
+    tables[table_name] = await prisma.$queryRawUnsafe(`SELECT * FROM "${table_name.replace(/"/g, '""')}"`);
+  }
 
   const dir = path.join(__dirname, "..", "backups");
   mkdirSync(dir, { recursive: true });
