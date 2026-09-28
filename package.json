@@ -10,6 +10,7 @@
     "lint": "eslint",
     "import": "tsx scripts/import-records.ts",
     "import-gp": "tsx scripts/import-gp.ts",
+    "backup-db": "tsx scripts/backup-db.ts",
     "set-member": "tsx scripts/set-member.ts"
   },
   "dependencies": {

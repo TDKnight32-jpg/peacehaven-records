@@ -28,7 +28,19 @@ One-time setup (env vars, `npm install`) is covered in `README.md` — this assu
 
    If you want to double-check the numbers, open `scripts/import-gp-report.json` — it lists every event with its result count.
 
-4. **If it looks clean, write it for real:**
+   If you deleted a row or corrected a name in the sheet, the dry run also prints a **"Would remove (with --write)"** list: results that are in the database but no longer in the sheet, and runners who'd be left with no results. Check it matches what you changed. The sheet is treated as the source of truth, so `--write` will delete those. Runners with an email or any Couch to 5K data are never removed.
+
+   If more than 10 results would be removed, `--write` refuses to run — that usually means a sheet tab failed to load rather than a real change. Re-run the dry run; only add `--allow-large-removal` if the list is genuinely what you intended.
+
+   To keep a runner's page address (slug) when correcting their name, run `npm run import-gp -- --rename-runner <old-slug> "New Name"` *before* importing — otherwise the old runner is removed and a new one created under the corrected name.
+
+4. **If it looks clean, back up the database, then write it for real:**
+
+   ```bash
+   npm run backup-db
+   ```
+
+   This saves a copy of every table to `backups/` (never commit that folder — it contains emails). Then:
 
    ```bash
    npm run import-gp -- --write

@@ -129,6 +129,81 @@ function detectRenameCandidates(
   return candidates;
 }
 
+/** Above this many result removals, `--write` refuses to run without
+ * `--allow-large-removal` — a guard against a tab that comes back empty or
+ * truncated (e.g. a flaky Google fetch) wiping out a whole race's results. */
+const MAX_REMOVALS_WITHOUT_CONFIRMATION = 10;
+
+interface StaleResult {
+  id: string;
+  eventName: string;
+  runnerName: string;
+  category: string;
+}
+
+interface OrphanRunner {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * The sheet is the source of truth for every event in RACE_TABS, so any DB
+ * result for one of those events that no longer appears in the sheet (a
+ * deleted row, or a corrected name spelling) is stale. Results for events
+ * NOT in RACE_TABS are left alone — the importer doesn't manage them.
+ *
+ * A runner is an orphan if, once stale results are gone, they have no GP
+ * results left and won't get one from this batch. Runners with an email or
+ * any C25K data (progress, badges, cohort enrollment) are never orphans —
+ * C25K runners legitimately have zero GP results.
+ *
+ * Computed purely from the sheet + DB (no writes), so the dry run can
+ * preview exactly what `--write` will remove.
+ */
+async function findRemovals(raceTabs: RaceTabResult[]) {
+  const sheetKeys = new Set<string>();
+  const namesInBatch = new Set<string>();
+  for (const t of raceTabs) {
+    for (const r of t.results) {
+      const runnerKey = normalizeRunnerName(r.runnerName);
+      sheetKeys.add(`${normalizeWhitespace(t.tabName)}|${runnerKey}|${r.category}`);
+      namesInBatch.add(runnerKey);
+    }
+  }
+  const managedEventNames = new Set(raceTabs.map((t) => normalizeWhitespace(t.tabName)));
+
+  const dbResults = await prisma.gpResult.findMany({
+    select: { id: true, runnerId: true, category: true, event: { select: { name: true } }, runner: { select: { name: true } } },
+  });
+  const staleResults: StaleResult[] = [];
+  const runnersWithRemainingResults = new Set<string>();
+  for (const r of dbResults) {
+    const eventKey = normalizeWhitespace(r.event.name);
+    const key = `${eventKey}|${normalizeRunnerName(r.runner.name)}|${r.category}`;
+    if (managedEventNames.has(eventKey) && !sheetKeys.has(key)) {
+      staleResults.push({ id: r.id, eventName: r.event.name, runnerName: r.runner.name, category: r.category });
+    } else {
+      runnersWithRemainingResults.add(r.runnerId);
+    }
+  }
+
+  const candidates = await prisma.runner.findMany({
+    where: {
+      email: null,
+      c25kProgress: { none: {} },
+      badges: { none: {} },
+      cohortEnrollments: { none: {} },
+    },
+    select: { id: true, name: true, slug: true },
+  });
+  const orphanRunners: OrphanRunner[] = candidates.filter(
+    (r) => !runnersWithRemainingResults.has(r.id) && !namesInBatch.has(normalizeRunnerName(r.name)),
+  );
+
+  return { staleResults, orphanRunners };
+}
+
 function buildReport(events: ParsedGpEvent[], raceTabs: RaceTabResult[]) {
   return {
     totalEvents: events.length,
@@ -255,6 +330,24 @@ async function main() {
     );
   }
 
+  const { staleResults, orphanRunners } = await findRemovals(raceTabs);
+  if (staleResults.length > 0 || orphanRunners.length > 0) {
+    console.log(`\n${write ? "Will remove" : "Would remove (with --write)"}:`);
+    console.log(`  ${staleResults.length} result(s) no longer in the sheet:`);
+    for (const r of staleResults) console.log(`    [${r.eventName}] ${r.runnerName} (${r.category})`);
+    console.log(`  ${orphanRunners.length} runner(s) left with no results:`);
+    for (const r of orphanRunners) console.log(`    ${r.name} (slug: ${r.slug})`);
+    console.log("");
+  }
+  const allowLargeRemoval = process.argv.includes("--allow-large-removal");
+  if (write && staleResults.length > MAX_REMOVALS_WITHOUT_CONFIRMATION && !allowLargeRemoval) {
+    throw new Error(
+      `Refusing to write: ${staleResults.length} results would be removed (limit ${MAX_REMOVALS_WITHOUT_CONFIRMATION}). ` +
+        "Check the list above — if a whole race is missing, a sheet tab may have failed to load. " +
+        "If the removals are genuinely intended, re-run with --write --allow-large-removal.",
+    );
+  }
+
   const report = buildReport(events, raceTabs);
   const reportPath = path.join(__dirname, "import-gp-report.json");
   writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -350,6 +443,24 @@ async function main() {
     }
   }
   console.log(`Wrote ${resultCount} results to the database.`);
+
+  // Removals run last, after every sheet result is safely upserted, and
+  // all-or-nothing. The runner delete re-checks "no results, no email, no
+  // C25K data" in the query itself rather than trusting the earlier snapshot.
+  const [removedResults, removedRunners] = await prisma.$transaction([
+    prisma.gpResult.deleteMany({ where: { id: { in: staleResults.map((r) => r.id) } } }),
+    prisma.runner.deleteMany({
+      where: {
+        id: { in: orphanRunners.map((r) => r.id) },
+        email: null,
+        results: { none: {} },
+        c25kProgress: { none: {} },
+        badges: { none: {} },
+        cohortEnrollments: { none: {} },
+      },
+    }),
+  ]);
+  console.log(`Removed ${removedResults.count} stale result(s) and ${removedRunners.count} orphaned runner(s).`);
 }
 
 main()

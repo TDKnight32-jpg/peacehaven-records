@@ -41,7 +41,8 @@ Same idea as club records, imported from a separate Google Sheet with one "Event
 
 ```bash
 npm run import-gp                # dry run: parses + sanity-checks + writes scripts/import-gp-report.json
-npm run import-gp -- --write     # writes events, runners, and results to the database
+npm run import-gp -- --write     # writes events, runners, and results; removes results no longer in the sheet + orphaned runners
+npm run backup-db                # snapshot every table to backups/ (gitignored) before risky changes
 ```
 
 Runners are matched across tabs by normalized name (case/whitespace-insensitive) so hand-typed variants collapse onto one runner rather than creating duplicates — genuine spelling variants (e.g. a nickname) still need a manual fix.
