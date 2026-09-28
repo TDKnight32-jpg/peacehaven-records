@@ -1,16 +1,10 @@
 import Link from "next/link";
 import { getGpEvents } from "@/lib/gp";
-import { SCORING_LABEL, formatDate } from "@/components/gp-event-table";
+import { SCORING_BADGE, SCORING_LABEL, formatDate } from "@/components/gp-event-table";
 
 // Same shape as the leaderboard's rows: styling to match the individual
 // event page comes once that's signed off.
 export const revalidate = 0;
-
-const SCORING_BADGE: Record<string, string> = {
-  FASTEST_TIME: "bg-primary-50 text-primary",
-  AGE_GRADE: "bg-gp-blue-bg text-gp-blue",
-  NAKED_RUN: "bg-gp-plum-bg text-gp-plum",
-};
 
 function Badge({ children, className }: { children: React.ReactNode; className: string }) {
   return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${className}`}>{children}</span>;

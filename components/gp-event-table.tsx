@@ -8,6 +8,14 @@ export const SCORING_LABEL: Record<string, string> = {
   NAKED_RUN: "Naked Run",
 };
 
+/** Badge colours per scoring type — three distinct tones so the type is
+ * scannable at a glance (events list, category breakdown page). */
+export const SCORING_BADGE: Record<string, string> = {
+  FASTEST_TIME: "bg-primary-50 text-primary",
+  AGE_GRADE: "bg-gp-blue-bg text-gp-blue",
+  NAKED_RUN: "bg-gp-plum-bg text-gp-plum",
+};
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }

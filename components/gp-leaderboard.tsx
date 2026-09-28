@@ -5,16 +5,18 @@ import Link from "next/link";
 import type { LeaderboardRow, StandingMovement } from "@/lib/gp";
 import { ToggleGroup } from "./toggle-group";
 import { MovementIndicator } from "./gp-movement-indicator";
+import { GpHighlights } from "./gp-highlights";
+import type { CategoryHighlights } from "@/lib/gp-highlights";
 
-type CategoryFilter = "ALL" | "M" | "F";
+export type CategoryFilter = "ALL" | "M" | "F";
 
-const CATEGORY_OPTIONS = [
+export const CATEGORY_OPTIONS = [
   { value: "ALL" as CategoryFilter, label: "All" },
   { value: "F" as CategoryFilter, label: "Women's" },
   { value: "M" as CategoryFilter, label: "Men's" },
 ];
 
-const CATEGORY_SECTION_LABEL: Record<"M" | "F", string> = { F: "Women's", M: "Men's" };
+export const CATEGORY_SECTION_LABEL: Record<"M" | "F", string> = { F: "Women's", M: "Men's" };
 
 interface RankStyle {
   container: string;
@@ -29,7 +31,7 @@ interface RankStyle {
  * gets a plain white card with a thin all-around border — its own
  * `border-l-[4px] border-l-transparent` keeps its left edge the same width
  * as the medal rows so nothing shifts horizontally between them. */
-function rankStyle(rank: number): RankStyle {
+export function rankStyle(rank: number): RankStyle {
   switch (rank) {
     case 1:
       return {
@@ -127,9 +129,11 @@ function LeaderboardRowCard({
 export function GpLeaderboard({
   rows,
   movements,
+  highlights,
 }: {
   rows: LeaderboardRow[];
   movements: Record<string, StandingMovement>;
+  highlights: { mostImproved: CategoryHighlights; bestNewcomer: CategoryHighlights };
 }) {
   const [category, setCategory] = useState<CategoryFilter>("ALL");
 
@@ -148,6 +152,12 @@ export function GpLeaderboard({
         <h2 className="text-xl font-bold text-foreground sm:text-2xl">Club Grand Prix Leaderboard</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Link
+            href="/gp/breakdown"
+            className="rounded-lg border-[0.5px] border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50"
+          >
+            Category breakdown
+          </Link>
+          <Link
             href="/gp/events"
             className="rounded-lg border-[0.5px] border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50"
           >
@@ -160,6 +170,8 @@ export function GpLeaderboard({
         Best 8 race scores count at full value; every race beyond that still earns 1 participation point. Volunteer
         credits are added on top, uncapped.
       </p>
+
+      {hasAnyRows && <GpHighlights {...highlights} categories={categories} />}
 
       {!hasAnyRows ? (
         <p className="mt-10 rounded-xl border border-border bg-surface p-6 text-center text-muted">

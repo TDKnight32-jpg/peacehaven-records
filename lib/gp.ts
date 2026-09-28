@@ -243,10 +243,20 @@ export async function getGpLeaderboard(
     row.scores.sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
   }
 
-  rows.sort((a, b) => a.category.localeCompare(b.category) || b.totalPoints - a.totalPoints);
+  assignCompetitionRanks(rows, (row) => row.totalPoints);
+  return rows;
+}
 
-  // Competition ranking (1, 2, 2, 4) within each category: ties share a
-  // rank, and the next distinct total skips ahead to its 1-indexed position.
+/** Sorts rows by category, then points descending, and sets each row's
+ * `rank` as a competition ranking (1, 2, 2, 4) within its category: ties
+ * share a rank, and the next distinct total skips ahead to its 1-indexed
+ * position. Shared by the overall leaderboard and the per-scoring-type
+ * tables so both treat ties identically. */
+function assignCompetitionRanks<T extends { category: Category; rank: number }>(
+  rows: T[],
+  pointsOf: (row: T) => number,
+): void {
+  rows.sort((a, b) => a.category.localeCompare(b.category) || pointsOf(b) - pointsOf(a));
   let position = 0;
   let lastCategory: Category | null = null;
   let lastPoints: number | null = null;
@@ -258,14 +268,73 @@ export async function getGpLeaderboard(
       lastCategory = row.category;
     }
     position++;
-    if (row.totalPoints !== lastPoints) {
+    if (pointsOf(row) !== lastPoints) {
       lastRank = position;
-      lastPoints = row.totalPoints;
+      lastPoints = pointsOf(row);
     }
     row.rank = lastRank;
   }
+}
 
-  return rows;
+export const SCORING_TYPES = ["FASTEST_TIME", "AGE_GRADE", "NAKED_RUN"] as const;
+export type ScoringType = (typeof SCORING_TYPES)[number];
+
+export interface ScoringTypeRow {
+  runnerName: string;
+  runnerSlug: string;
+  category: Category;
+  rank: number;
+  points: number;
+  races: number;
+}
+
+export interface ScoringTypeBoard {
+  scoringType: ScoringType;
+  /** Events of this type that have results / all events of this type. */
+  racesRun: number;
+  racesTotal: number;
+  rows: ScoringTypeRow[];
+}
+
+/**
+ * One mini-leaderboard per scoring type, for the "Category breakdown" page:
+ * each runner's points from that type's races, summed. The overall
+ * leaderboard's best-8 cap never applies here (no scoring type has more
+ * than 8 races in a season), and there's nothing to drop, so participation
+ * credits don't arise. Volunteer credits aren't a race result of any type
+ * and are left out; so are former members, as on the overall leaderboard.
+ */
+export async function getScoringTypeBoards(): Promise<ScoringTypeBoard[]> {
+  const [results, events] = await Promise.all([
+    prisma.gpResult.findMany({
+      where: { points: { not: null }, isVolunteer: false, runner: { isFormerMember: false } },
+      include: { runner: true, event: { select: { scoringType: true } } },
+    }),
+    prisma.gpEvent.findMany({ select: { scoringType: true, _count: { select: { results: true } } } }),
+  ]);
+
+  return SCORING_TYPES.map((scoringType) => {
+    const byRunner = new Map<string, ScoringTypeRow>();
+    for (const r of results) {
+      if (r.event.scoringType !== scoringType) continue;
+      const key = `${r.runnerId}:${r.category}`;
+      const row =
+        byRunner.get(key) ??
+        { runnerName: r.runner.name, runnerSlug: r.runner.slug, category: r.category as Category, rank: 0, points: 0, races: 0 };
+      row.points += r.points!;
+      row.races++;
+      byRunner.set(key, row);
+    }
+    const rows = [...byRunner.values()];
+    assignCompetitionRanks(rows, (row) => row.points);
+    const ofType = events.filter((e) => e.scoringType === scoringType);
+    return {
+      scoringType,
+      racesRun: ofType.filter((e) => e._count.results > 0).length,
+      racesTotal: ofType.length,
+      rows,
+    };
+  });
 }
 
 /** Places moved between two standings snapshots, keyed by `${runnerSlug}:${category}`

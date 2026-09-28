@@ -7,6 +7,7 @@ import {
   computeMovements,
 } from "@/lib/gp";
 import { buildHeadlines } from "@/lib/gp-headlines";
+import { mostImproved, bestNewcomer } from "@/lib/gp-highlights";
 import { GpLeaderboard } from "@/components/gp-leaderboard";
 import { GpNewsTicker } from "@/components/gp-news-ticker";
 import { GpNextRace } from "@/components/gp-next-race";
@@ -42,7 +43,11 @@ export default async function GpPage() {
       <GpNewsTicker headlines={headlines} />
       <GpNextRace event={nextRace} />
       <Suspense fallback={null}>
-        <GpLeaderboard rows={rows} movements={movements} />
+        <GpLeaderboard
+          rows={rows}
+          movements={movements}
+          highlights={{ mostImproved: mostImproved(rows, priorRows), bestNewcomer: bestNewcomer(rows) }}
+        />
       </Suspense>
     </>
   );
