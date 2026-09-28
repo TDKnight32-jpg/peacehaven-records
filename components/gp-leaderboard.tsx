@@ -118,7 +118,7 @@ export function GpLeaderboard({
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 sm:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-bold text-foreground">Club Grand Prix Leaderboard</h2>
+        <h2 className="text-xl font-bold text-foreground sm:text-2xl">Club Grand Prix Leaderboard</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/gp/events"
