@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { prisma } from "./db";
 import { categoryRank } from "./distances";
 
@@ -52,4 +53,32 @@ export function isHttpUrl(raw: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Records the records officer's decision on a pending submission, and
+ * deletes its results photo (if any) from Blob storage — the photo is only
+ * kept until a decision is made. Returns false if the submission doesn't
+ * exist or was already decided.
+ *
+ * The row is updated first, so a failed delete can only leave an orphaned
+ * photo (logged with its URL for manual cleanup), never a pending
+ * submission whose photo has vanished. */
+export async function decideSubmission(id: string, decision: "APPROVED" | "DECLINED"): Promise<boolean> {
+  const submission = await prisma.recordSubmission.findUnique({ where: { id }, select: { photoUrl: true } });
+  if (!submission) return false;
+
+  // Conditional on still being PENDING, so two reviewers acting at once
+  // can't both decide it.
+  const { count } = await prisma.recordSubmission.updateMany({
+    where: { id, status: "PENDING" },
+    data: { status: decision, photoUrl: null },
+  });
+  if (count === 0) return false;
+
+  if (submission.photoUrl) {
+    await del(submission.photoUrl).catch((err) => {
+      console.error(`Couldn't delete photo for decided submission ${id}: ${submission.photoUrl}`, err);
+    });
+  }
+  return true;
 }

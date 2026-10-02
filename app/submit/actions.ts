@@ -1,7 +1,9 @@
 "use server";
 
+import { del, put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import { getSubmitDistanceOptions, isHttpUrl, parsePerformanceTime } from "@/lib/submissions";
+import { MAX_PHOTO_BYTES, detectPhotoType } from "@/lib/submission-photo";
 
 export type SubmitField =
   | "distance"
@@ -13,6 +15,8 @@ export type SubmitField =
   | "date"
   | "email"
   | "resultsUrl"
+  | "photo"
+  | "proof"
   | "member";
 
 export type SubmitState =
@@ -73,29 +77,74 @@ export async function submitRecord(_prev: SubmitState, formData: FormData): Prom
     errors.email = "Enter a valid email address.";
   }
 
+  // Proof: a results link, a photo of the result, or both — but at least one.
   const resultsUrl = text(formData, "resultsUrl");
-  if (!isHttpUrl(resultsUrl) || resultsUrl.length > MAX_URL) {
-    errors.resultsUrl = "Enter a link to the official results (starting https://).";
+  if (resultsUrl && (!isHttpUrl(resultsUrl) || resultsUrl.length > MAX_URL)) {
+    errors.resultsUrl = "Enter a full link to the official results, starting https://";
+  }
+
+  const photoField = formData.get("photo");
+  const photoFile = photoField instanceof File && photoField.size > 0 ? photoField : null;
+  let photo: { bytes: Uint8Array; ext: string; contentType: string } | null = null;
+  if (photoFile) {
+    if (photoFile.size > MAX_PHOTO_BYTES) {
+      errors.photo = "That photo is over 4MB. Try a screenshot or a smaller photo.";
+    } else {
+      const bytes = new Uint8Array(await photoFile.arrayBuffer());
+      const type = detectPhotoType(bytes);
+      if (type) photo = { bytes, ...type };
+      else errors.photo = "The photo must be a JPG, PNG or HEIC image.";
+    }
+  }
+
+  if (!resultsUrl && !photoFile) {
+    errors.proof = "Add a link to the official results, or upload a photo of your result.";
   }
 
   if (formData.get("member") !== "on") errors.member = "Please confirm the athlete is a club member.";
 
   if (Object.keys(errors).length > 0 || !distance || !date) return { status: "error", errors };
 
-  await prisma.recordSubmission.create({
-    data: {
-      distance: { connect: { slug: distance.slug } },
-      gender,
-      ageCategory,
-      time,
-      laps,
-      athleteName,
-      event,
-      date,
-      email,
-      resultsUrl,
-    },
-  });
+  // Uploaded only once everything else has passed, so a rejected form
+  // doesn't leave an orphaned photo in the store.
+  let photoUrl: string | null = null;
+  if (photo) {
+    try {
+      const blob = await put(`record-submissions/result.${photo.ext}`, Buffer.from(photo.bytes), {
+        access: "private",
+        addRandomSuffix: true,
+        contentType: photo.contentType,
+      });
+      photoUrl = blob.url;
+    } catch (err) {
+      console.error("Record submission photo upload failed", err);
+      return {
+        status: "error",
+        errors: { photo: "Sorry, the photo couldn't be uploaded. Please try again, or use a results link instead." },
+      };
+    }
+  }
+
+  try {
+    await prisma.recordSubmission.create({
+      data: {
+        distance: { connect: { slug: distance.slug } },
+        gender,
+        ageCategory,
+        time,
+        laps,
+        athleteName,
+        event,
+        date,
+        email,
+        resultsUrl: resultsUrl || null,
+        photoUrl,
+      },
+    });
+  } catch (err) {
+    if (photoUrl) await del(photoUrl).catch(() => {});
+    throw err;
+  }
 
   return { status: "success", athleteName, distanceName: distance.name };
 }

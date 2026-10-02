@@ -1,10 +1,11 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { submitRecord, type SubmitField, type SubmitState } from "@/app/submit/actions";
 import type { SubmitDistanceOption } from "@/lib/submissions";
+import { MAX_PHOTO_BYTES, PHOTO_ACCEPT } from "@/lib/submission-photo";
 import { ToggleGroup } from "./toggle-group";
 
 const GENDER_OPTIONS = [
@@ -61,6 +62,14 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
   // uncontrolled fields start empty again.
   const [dismissed, setDismissed] = useState<SubmitState | null>(null);
   const [formKey, setFormKey] = useState(0);
+  // Checked as soon as a photo is picked, before anything is sent — an
+  // oversized upload would otherwise be cut off by the server's body limit
+  // with no friendly message.
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoTooBig, setPhotoTooBig] = useState(false);
+
+  const photoError = photoTooBig ? "That photo is over 4MB. Try a screenshot or a smaller photo." : undefined;
 
   const distance = distances.find((d) => d.slug === distanceSlug);
   const errors: Partial<Record<SubmitField, string>> = state.status === "error" ? state.errors : {};
@@ -72,7 +81,7 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
         <h3 className="text-lg font-bold text-primary">Thanks — submission received</h3>
         <p className="mt-2 text-sm text-foreground">
           {state.athleteName}&rsquo;s {state.distanceName} has been sent to the records officer. They&rsquo;ll check
-          the results link and update the records page if it&rsquo;s a new club record.
+          the results link or photo and update the records page if it&rsquo;s a new club record.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
@@ -87,6 +96,8 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
               setDismissed(state);
               setFormKey((k) => k + 1);
               setDistanceSlug("");
+              setPhotoName(null);
+              setPhotoTooBig(false);
             }}
             className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:border-primary/50"
           >
@@ -223,21 +234,79 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
           </Field>
         </div>
 
-        <Field
-          id="resultsUrl"
-          label="Link to official results"
-          hint="Required — the records officer uses this to verify the time."
-          error={errors.resultsUrl}
-        >
-          <input
-            id="resultsUrl"
-            name="resultsUrl"
-            type="url"
-            placeholder="https://"
-            className={inputClass}
-            {...aria("resultsUrl", "resultsUrl")}
-          />
-        </Field>
+        <div role="group" aria-labelledby="proof-label" aria-describedby="proof-hint" className="flex flex-col gap-1.5">
+          <span id="proof-label" className="text-sm font-semibold text-foreground">
+            Proof of result
+          </span>
+          <p id="proof-hint" className="text-xs text-muted">
+            The records officer uses this to verify the time. Add a link to the official results, or upload a photo
+            of your result — one or the other is required.
+          </p>
+
+          <div
+            className={clsx(
+              "mt-1 flex flex-col gap-4 rounded-lg border bg-background p-4",
+              errors.proof ? "border-gp-points-weak" : "border-border",
+            )}
+          >
+            <Field id="resultsUrl" label="Link to official results" error={errors.resultsUrl}>
+              <input
+                id="resultsUrl"
+                name="resultsUrl"
+                type="url"
+                placeholder="https://"
+                className={inputClass}
+                {...aria("resultsUrl", "resultsUrl")}
+              />
+            </Field>
+
+            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <Field
+              id="photo"
+              label="Upload a photo of your result"
+              hint="e.g. a screenshot of your chip time. JPG, PNG or HEIC (iPhone), up to 4MB."
+              error={photoError ?? errors.photo}
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  ref={photoInput}
+                  id="photo"
+                  name="photo"
+                  type="file"
+                  accept={PHOTO_ACCEPT}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const tooBig = !!file && file.size > MAX_PHOTO_BYTES;
+                    setPhotoTooBig(tooBig);
+                    if (tooBig) e.target.value = "";
+                    setPhotoName(file && !tooBig ? file.name : null);
+                  }}
+                  className="min-w-0 flex-1 text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-primary-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary-50"
+                  aria-invalid={photoError || errors.photo ? true : undefined}
+                  aria-describedby={photoError || errors.photo ? "photo-error" : "photo-hint"}
+                />
+                {photoName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (photoInput.current) photoInput.current.value = "";
+                      setPhotoName(null);
+                    }}
+                    className="text-sm font-medium text-muted underline underline-offset-2 hover:text-primary"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            </Field>
+          </div>
+          {errors.proof && <p className="text-xs font-medium text-gp-points-weak">{errors.proof}</p>}
+        </div>
       </fieldset>
 
       <fieldset className="flex flex-col gap-5 border-t border-border pt-6">

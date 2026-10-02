@@ -54,7 +54,13 @@ model RecordSubmission {
   event       String
   date        DateTime
   email       String
-  resultsUrl  String
+  // Proof of the result: at least one of these is always set (enforced in
+  // app/submit/actions.ts, not the DB). photoUrl points at a private Vercel
+  // Blob — reading it needs BLOB_READ_WRITE_TOKEN, it isn't a public link.
+  // The photo is deleted (and photoUrl cleared) as soon as the submission is
+  // approved or declined — see decideSubmission in lib/submissions.ts.
+  resultsUrl  String?
+  photoUrl    String?
   status      String   @default("PENDING") // "PENDING" | "APPROVED" | "DECLINED"
   submittedAt DateTime @default(now())
 
