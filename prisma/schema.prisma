@@ -107,12 +107,20 @@ model Runner {
   id      String     @id @default(cuid())
   name    String
   slug    String     @unique
+  // Optional contact address, not used for login — most Runner rows come
+  // from GP import and never set this. Handy for pairing a name with an
+  // address when sending the welcome email (see scripts/generate-links.ts).
+  email          String?    @unique
   // Left the club: excluded from the overall GP leaderboard and news ticker,
   // but their results stay (event pages, Club Pos, their own runner page).
   // Set only via scripts/set-member.ts — the GP import never changes it on
   // an existing runner, and never deletes a former member's results.
   isFormerMember Boolean @default(false)
   results GpResult[]
+
+  c25kProgress      RunnerProgress[]
+  badges            RunnerBadge[]
+  cohortEnrollments CohortRunner[]
 }
 
 model GpEvent {
@@ -143,4 +151,100 @@ model GpResult {
   isVolunteer   Boolean @default(false)
 
   @@unique([eventId, runnerId, category])
+}
+
+// ---- Couch to 5K ----------------------------------------------------------
+
+// One run of the C25K programme (e.g. "January 2027"). Weeks/sessions are
+// shared plan content (below) — a cohort is just a start date runners
+// progress against, so the same 9-week plan can be reused every year.
+model Cohort {
+  id        String   @id @default(cuid())
+  year      Int
+  name      String
+  startDate DateTime
+
+  progress    RunnerProgress[]
+  badges      RunnerBadge[]
+  enrollments CohortRunner[]
+}
+
+// A runner enrolled in one cohort's run of the programme, and the personal
+// long-life link they log in with (see lib/c25k-auth.ts and
+// app/c25k/enter/[token]/route.ts). Enrolling someone is currently a manual
+// step (add a row via Prisma Studio) — `token` is generated automatically
+// the moment the row is created, no need to type one in by hand.
+model CohortRunner {
+  id       String @id @default(cuid())
+  cohort   Cohort @relation(fields: [cohortId], references: [id])
+  cohortId String
+  runner   Runner @relation(fields: [runnerId], references: [id])
+  runnerId String
+  token    String @unique @default(cuid())
+
+  createdAt DateTime @default(now())
+
+  @@unique([cohortId, runnerId])
+}
+
+// Shared plan content — not cohort-specific, reused every year. There are
+// always exactly 9 of these (the standard C25K programme length).
+model C25kWeek {
+  id          String  @id @default(cuid())
+  weekNumber  Int     @unique
+  title       String
+  description String?
+
+  sessions C25kSession[]
+}
+
+model C25kSession {
+  id          String   @id @default(cuid())
+  week        C25kWeek @relation(fields: [weekId], references: [id])
+  weekId      String
+  dayLabel    String // e.g. "Day 1"
+  description String?
+  order       Int
+
+  progress RunnerProgress[]
+
+  @@unique([weekId, order])
+}
+
+// One runner ticking off one session within one cohort's run of the
+// programme. A runner who repeats the programme in a later cohort gets a
+// fresh set of rows rather than reusing the old ones.
+model RunnerProgress {
+  id          String      @id @default(cuid())
+  runner      Runner      @relation(fields: [runnerId], references: [id])
+  runnerId    String
+  cohort      Cohort      @relation(fields: [cohortId], references: [id])
+  cohortId    String
+  session     C25kSession @relation(fields: [sessionId], references: [id])
+  sessionId   String
+  completedAt DateTime    @default(now())
+
+  @@unique([runnerId, cohortId, sessionId])
+}
+
+model Badge {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  criteria    String // free text for now, e.g. "Complete all 9 weeks"
+
+  runners RunnerBadge[]
+}
+
+model RunnerBadge {
+  id       String   @id @default(cuid())
+  runner   Runner   @relation(fields: [runnerId], references: [id])
+  runnerId String
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+  badgeId  String
+  cohort   Cohort   @relation(fields: [cohortId], references: [id])
+  cohortId String
+  earnedAt DateTime @default(now())
+
+  @@unique([runnerId, badgeId, cohortId])
 }
