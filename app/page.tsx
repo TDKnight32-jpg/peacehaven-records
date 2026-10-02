@@ -28,6 +28,13 @@ export default async function Home() {
           <RecordsExplorer distances={distances} records={records} history={history} />
         </Suspense>
       </main>
+      <footer className="border-t border-border">
+        <div className="mx-auto flex w-full max-w-5xl justify-end px-4 py-4 sm:px-6">
+          <Link href="/officials" className="text-xs text-muted hover:text-primary hover:underline">
+            Records Officer Login
+          </Link>
+        </div>
+      </footer>
     </>
   );
 }
