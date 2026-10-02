@@ -43,26 +43,30 @@ model RecordEntry {
 // records pages until an approver (phase 2) acts on it. No login is needed
 // to submit, so every field is treated as untrusted user input.
 model RecordSubmission {
-  id          String   @id @default(cuid())
-  distance    Distance @relation(fields: [distanceId], references: [id])
-  distanceId  String
-  gender      String // "M" | "F"
-  ageCategory String // one of the bands shown on the records page, e.g. "40-49"
-  time        String? // "H:MM:SS" / "MM:SS" as typed; null for laps-based distances
-  laps        Int? // Back Yard Ultra only
-  athleteName String
-  event       String
-  date        DateTime
-  email       String
+  id            String    @id @default(cuid())
+  distance      Distance  @relation(fields: [distanceId], references: [id])
+  distanceId    String
+  gender        String // "M" | "F"
+  ageCategory   String // one of the bands shown on the records page, e.g. "40-49"
+  time          String? // "H:MM:SS" / "MM:SS" as typed; null for laps-based distances
+  laps          Int? // Back Yard Ultra only
+  athleteName   String
+  event         String
+  date          DateTime
+  email         String
   // Proof of the result: at least one of these is always set (enforced in
   // app/submit/actions.ts, not the DB). photoUrl points at a private Vercel
   // Blob — reading it needs BLOB_READ_WRITE_TOKEN, it isn't a public link.
   // The photo is deleted (and photoUrl cleared) as soon as the submission is
   // approved or declined — see decideSubmission in lib/submissions.ts.
-  resultsUrl  String?
-  photoUrl    String?
-  status      String   @default("PENDING") // "PENDING" | "APPROVED" | "DECLINED"
-  submittedAt DateTime @default(now())
+  resultsUrl    String?
+  photoUrl      String?
+  status        String    @default("PENDING") // "PENDING" | "APPROVED" | "DECLINED"
+  submittedAt   DateTime  @default(now())
+  decidedAt     DateTime?
+  // The records officer's note when declining, for their own reference when
+  // contacting the submitter. Null for pending and approved submissions.
+  declineReason String?
 
   @@index([status, submittedAt])
 }

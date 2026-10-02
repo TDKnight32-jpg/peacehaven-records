@@ -205,6 +205,19 @@ async function main() {
     return;
   }
 
+  // The site, not the sheet, is now the master for live records: officials
+  // approve submissions straight into RecordEntry (see app/officials). This
+  // import overwrites every slot with the sheet's values, so it would
+  // silently undo those approvals — refuse unless explicitly overridden.
+  const approved = await prisma.recordSubmission.count({ where: { status: "APPROVED" } });
+  if (approved > 0 && !process.argv.includes("--overwrite-approved")) {
+    throw new Error(
+      `${approved} submission(s) have been approved on the site since records moved off the sheet. ` +
+        "Writing the sheet now would overwrite those live records. Re-run with --overwrite-approved " +
+        "only if the sheet has every approved record in it.",
+    );
+  }
+
   console.log("\nWriting to database...");
 
   for (const dist of DISTANCES) {

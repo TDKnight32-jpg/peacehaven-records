@@ -1,4 +1,5 @@
 import { del } from "@vercel/blob";
+import { Prisma, type Distance, type RecordSubmission } from "@prisma/client";
 import { prisma } from "./db";
 import { categoryRank } from "./distances";
 
@@ -57,28 +58,55 @@ export function isHttpUrl(raw: string): boolean {
 
 /** Records the records officer's decision on a pending submission, and
  * deletes its results photo (if any) from Blob storage — the photo is only
- * kept until a decision is made. Returns false if the submission doesn't
- * exist or was already decided.
+ * kept until a decision is made.
  *
- * The row is updated first, so a failed delete can only leave an orphaned
- * photo (logged with its URL for manual cleanup), never a pending
+ * `onDecide` runs inside the same transaction as the status change (approval
+ * uses it to publish the record), so either both happen or neither does.
+ * Returns `{ result }` with whatever `onDecide` returned, or null if the
+ * submission doesn't exist or was already decided.
+ *
+ * The row is updated first, so a failed photo delete can only leave an
+ * orphaned photo (logged with its URL for manual cleanup), never a pending
  * submission whose photo has vanished. */
-export async function decideSubmission(id: string, decision: "APPROVED" | "DECLINED"): Promise<boolean> {
-  const submission = await prisma.recordSubmission.findUnique({ where: { id }, select: { photoUrl: true } });
-  if (!submission) return false;
+export async function decideSubmission<T = void>(
+  id: string,
+  decision: "APPROVED" | "DECLINED",
+  options: {
+    declineReason?: string;
+    onDecide?: (tx: Prisma.TransactionClient, submission: RecordSubmission & { distance: Distance }) => Promise<T>;
+  } = {},
+): Promise<{ result: T | undefined } | null> {
+  const outcome = await prisma.$transaction(
+    async (tx) => {
+      const submission = await tx.recordSubmission.findUnique({ where: { id }, include: { distance: true } });
+      if (!submission) return null;
 
-  // Conditional on still being PENDING, so two reviewers acting at once
-  // can't both decide it.
-  const { count } = await prisma.recordSubmission.updateMany({
-    where: { id, status: "PENDING" },
-    data: { status: decision, photoUrl: null },
-  });
-  if (count === 0) return false;
+      // Conditional on still being PENDING, so two officials acting at once
+      // can't both decide it.
+      const { count } = await tx.recordSubmission.updateMany({
+        where: { id, status: "PENDING" },
+        data: {
+          status: decision,
+          photoUrl: null,
+          decidedAt: new Date(),
+          declineReason: decision === "DECLINED" ? options.declineReason ?? null : null,
+        },
+      });
+      if (count === 0) return null;
 
-  if (submission.photoUrl) {
-    await del(submission.photoUrl).catch((err) => {
-      console.error(`Couldn't delete photo for decided submission ${id}: ${submission.photoUrl}`, err);
+      const result = await options.onDecide?.(tx, submission);
+      return { photoUrl: submission.photoUrl, result };
+    },
+    // Serializable so two approvals landing in the same record list at once
+    // can't both re-rank it from the same starting point.
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+  if (!outcome) return null;
+
+  if (outcome.photoUrl) {
+    await del(outcome.photoUrl).catch((err) => {
+      console.error(`Couldn't delete photo for decided submission ${id}: ${outcome.photoUrl}`, err);
     });
   }
-  return true;
+  return { result: outcome.result };
 }
