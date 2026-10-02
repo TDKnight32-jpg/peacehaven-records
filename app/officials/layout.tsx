@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function OfficialsLayout({ children }: LayoutProps<"/officials">) {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader homeHref="/" />
       <main className="flex-1">{children}</main>
     </>
   );
