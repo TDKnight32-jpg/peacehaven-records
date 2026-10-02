@@ -16,6 +16,7 @@ model Distance {
   records        RecordEntry[]
   historyEntries RecordHistoryEntry[]
   gpEvents       GpEvent[]
+  submissions    RecordSubmission[]
 }
 
 model RecordEntry {
@@ -35,6 +36,29 @@ model RecordEntry {
   footnoteId  String?
 
   @@unique([distanceId, gender, recordType, ageCategory, rank])
+}
+
+// A record claim sent in via the public /submit form, awaiting review. Kept
+// apart from RecordEntry on purpose: nothing here appears on the live
+// records pages until an approver (phase 2) acts on it. No login is needed
+// to submit, so every field is treated as untrusted user input.
+model RecordSubmission {
+  id          String   @id @default(cuid())
+  distance    Distance @relation(fields: [distanceId], references: [id])
+  distanceId  String
+  gender      String // "M" | "F"
+  ageCategory String // one of the bands shown on the records page, e.g. "40-49"
+  time        String? // "H:MM:SS" / "MM:SS" as typed; null for laps-based distances
+  laps        Int? // Back Yard Ultra only
+  athleteName String
+  event       String
+  date        DateTime
+  email       String
+  resultsUrl  String
+  status      String   @default("PENDING") // "PENDING" | "APPROVED" | "DECLINED"
+  submittedAt DateTime @default(now())
+
+  @@index([status, submittedAt])
 }
 
 // The sheet's "records history" columns only cover 5K/10K/10 Mile/Half

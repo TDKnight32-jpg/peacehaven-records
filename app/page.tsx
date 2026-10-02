@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { getRecordsData } from "@/lib/records";
 import { SiteHeader } from "@/components/site-header";
 import { RecordsExplorer } from "@/components/records-explorer";
@@ -15,6 +16,14 @@ export default async function Home() {
     <>
       <SiteHeader />
       <main className="flex-1">
+        <div className="mx-auto flex w-full max-w-5xl justify-end px-4 pt-6 sm:px-6">
+          <Link
+            href="/submit"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-secondary"
+          >
+            Submit a record
+          </Link>
+        </div>
         <Suspense fallback={null}>
           <RecordsExplorer distances={distances} records={records} history={history} />
         </Suspense>

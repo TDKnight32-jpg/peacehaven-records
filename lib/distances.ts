@@ -126,3 +126,13 @@ export function normalizeCategory(raw: string): string {
   if (/70/.test(t)) return "70+";
   return t;
 }
+
+/** Display order for age-group bands. "Under 40" and "20-39" are the same
+ * slot — which one a distance uses depends on how its sheet section is
+ * labelled. */
+export const CATEGORY_ORDER = ["Under 40", "20-39", "40-49", "50-59", "60-69", "70+"];
+
+export function categoryRank(cat: string): number {
+  const i = CATEGORY_ORDER.indexOf(cat);
+  return i === -1 ? 99 : i;
+}

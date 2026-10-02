@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { categoryRank } from "@/lib/distances";
 import type { ClientHistoryEntry, ClientRecord, DistanceMeta } from "@/lib/records";
 import { DistanceTabs } from "./distance-tabs";
 import { ToggleGroup } from "./toggle-group";
@@ -23,12 +24,6 @@ const TYPE_OPTIONS = [
   { value: "AGE_GROUP" as RecordType, label: "Age Group" },
   { value: "OVERALL" as RecordType, label: "Overall" },
 ];
-
-const CATEGORY_ORDER = ["Under 40", "20-39", "40-49", "50-59", "60-69", "70+"];
-function categoryRank(cat: string): number {
-  const i = CATEGORY_ORDER.indexOf(cat);
-  return i === -1 ? 99 : i;
-}
 
 const GENDER_SECTION_LABEL: Record<Gender, string> = { F: "Women's", M: "Men's" };
 
