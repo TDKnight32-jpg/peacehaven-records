@@ -203,7 +203,7 @@ export function RecordsExplorer({
         </div>
       )}
 
-      <RecordHistoryPanel entries={historyForDistance} genders={genders} />
+      <RecordHistoryPanel entries={historyForDistance} genders={genders} recordType={type} />
     </div>
   );
 }

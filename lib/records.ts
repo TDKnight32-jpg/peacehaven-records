@@ -28,9 +28,12 @@ export interface ClientHistoryEntry {
   id: string;
   distanceSlug: string;
   gender: "M" | "F";
+  recordType: "AGE_GROUP" | "OVERALL";
+  ageCategory: string | null;
   order: number;
   name: string;
-  time: string;
+  time: string | null;
+  laps: number | null;
   event: string | null;
   date: string | null;
 }
@@ -81,9 +84,12 @@ export async function getRecordsData(): Promise<{
       id: h.id,
       distanceSlug: distance.slug,
       gender: h.gender as "M" | "F",
+      recordType: h.recordType as "AGE_GROUP" | "OVERALL",
+      ageCategory: h.ageCategory || null,
       order: h.order,
       name: h.name,
       time: h.time,
+      laps: h.laps,
       event: h.event,
       date: h.date ? h.date.toISOString() : null,
     };

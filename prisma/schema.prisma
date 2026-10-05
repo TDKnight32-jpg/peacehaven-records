@@ -71,22 +71,29 @@ model RecordSubmission {
   @@index([status, submittedAt])
 }
 
-// The sheet's "records history" columns only cover 5K/10K/10 Mile/Half
-// Marathon/20 Mile/Marathon — other distances simply have no rows here.
-// `order` is chronological, ascending (1 = earliest known holder); the
-// highest `order` per (distance, gender) is the current record.
+// The progression of #1 holders for one record list — the same lists as
+// RecordEntry: OVERALL (ageCategory "") or one AGE_GROUP band. The sheet
+// import originally seeded OVERALL history for 5K/10K/10 Mile/Half
+// Marathon/20 Mile/Marathon only; since then, approving a submission that
+// takes a #1 appends to that list's history at any distance (see
+// publishApprovedSubmission in lib/record-approval.ts). `order` is
+// chronological, ascending (1 = earliest known holder); the highest `order`
+// per list is the current record.
 model RecordHistoryEntry {
-  id         String    @id @default(cuid())
-  distance   Distance  @relation(fields: [distanceId], references: [id])
-  distanceId String
-  gender     String // "M" | "F"
-  order      Int
-  name       String
-  time       String
-  event      String?
-  date       DateTime?
+  id          String    @id @default(cuid())
+  distance    Distance  @relation(fields: [distanceId], references: [id])
+  distanceId  String
+  gender      String // "M" | "F"
+  recordType  String    @default("OVERALL") // "AGE_GROUP" | "OVERALL"
+  ageCategory String    @default("") // "" for OVERALL, as on RecordEntry
+  order       Int
+  name        String
+  time        String? // "HH:MM:SS"; null for laps-based (Back Yard Ultra)
+  laps        Int? // Back Yard Ultra only
+  event       String?
+  date        DateTime?
 
-  @@unique([distanceId, gender, order])
+  @@unique([distanceId, gender, recordType, ageCategory, order])
 }
 
 model Footnote {

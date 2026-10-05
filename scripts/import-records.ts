@@ -287,7 +287,10 @@ async function main() {
   const historyDistanceIds = HISTORY_DISTANCE_SLUGS.map((slug) => distanceIdBySlug.get(slug)).filter(
     (id): id is string => Boolean(id),
   );
-  await prisma.recordHistoryEntry.deleteMany({ where: { distanceId: { in: historyDistanceIds } } });
+  // OVERALL only: age-group history is built by approvals, not the sheet.
+  await prisma.recordHistoryEntry.deleteMany({
+    where: { distanceId: { in: historyDistanceIds }, recordType: "OVERALL" },
+  });
   for (const h of history) {
     const distanceId = distanceIdBySlug.get(h.distanceSlug);
     if (!distanceId) continue;

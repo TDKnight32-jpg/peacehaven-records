@@ -1,7 +1,14 @@
 import type { Distance, Prisma, RecordEntry, RecordSubmission } from "@prisma/client";
 import { prisma } from "./db";
-import { HISTORY_DISTANCE_SLUGS } from "./csv-parser";
-import { RECORD_LIST_SIZE, formatRecordTime, placeInList, timeToSeconds, type Placement } from "./record-ranking";
+import {
+  RECORD_LIST_SIZE,
+  formatRecordTime,
+  performanceScore,
+  placeInList,
+  timeToSeconds,
+  type Placement,
+} from "./record-ranking";
+import { normalizeWhitespace } from "./text";
 
 type Db = typeof prisma | Prisma.TransactionClient;
 type SubmissionWithDistance = RecordSubmission & { distance: Distance };
@@ -84,8 +91,8 @@ export async function describePlacements(submission: SubmissionWithDistance): Pr
  * Publishes an approved submission into the live records, inside the
  * approval transaction (see decideSubmission): re-ranks its age-group and
  * overall lists — shifting existing holders down, dropping whoever falls off
- * the top 3, and replacing the athlete's own older entry — and, for a new
- * overall #1 at a distance with a records history, appends to that history.
+ * the top 3, and replacing the athlete's own older entry — and, for each list
+ * where it takes #1, appends to that list's history (see recordNewHolder).
  * Footnotes stay with the performance they annotate. Returns a summary of
  * what changed.
  */
@@ -105,7 +112,8 @@ export async function publishApprovedSubmission(
 
   const changes: string[] = [];
   for (const key of listsFor(submission)) {
-    const p = placement(submission, await currentList(tx, submission, key));
+    const current = await currentList(tx, submission, key);
+    const p = placement(submission, current);
     if (p.kind !== "enters") continue;
 
     for (const [i, entry] of p.list.entries()) {
@@ -135,24 +143,56 @@ export async function publishApprovedSubmission(
     }
     changes.push(`#${p.position} in ${key.label}`);
 
-    const tracksHistory = (HISTORY_DISTANCE_SLUGS as readonly string[]).includes(submission.distance.slug);
-    if (key.recordType === "OVERALL" && p.position === 1 && tracksHistory && newEntry.time) {
-      const last = await tx.recordHistoryEntry.findFirst({
-        where: { distanceId: submission.distanceId, gender: submission.gender },
-        orderBy: { order: "desc" },
-      });
-      await tx.recordHistoryEntry.create({
-        data: {
-          distanceId: submission.distanceId,
-          gender: submission.gender,
-          order: (last?.order ?? 0) + 1,
-          name: newEntry.name,
-          time: newEntry.time,
-          event: newEntry.event,
-          date: newEntry.date,
-        },
-      });
-    }
+    if (p.position === 1) await recordNewHolder(tx, submission, key, current[0], newEntry);
   }
   return changes;
+}
+
+type HistoryPerformance = { name: string | null; time: string | null; laps: number | null };
+type HistoryHolder = HistoryPerformance & { event: string | null; date: Date | null };
+
+function samePerformance(unit: "time" | "laps", a: HistoryPerformance, b: HistoryPerformance): boolean {
+  return (
+    !!a.name &&
+    !!b.name &&
+    normalizeWhitespace(a.name) === normalizeWhitespace(b.name) &&
+    performanceScore(unit, a) === performanceScore(unit, b)
+  );
+}
+
+/**
+ * Appends a new #1 to its list's history (overall or one age group, at any
+ * distance). The holder it displaces is saved first unless they're already
+ * the latest history entry (same name and performance) — so a former record
+ * is never lost, including when someone beats their own record, and a list
+ * with no history yet starts one with both holders. Only #1 is a record:
+ * entering at #2 or #3 never reaches here.
+ */
+async function recordNewHolder(
+  tx: Prisma.TransactionClient,
+  submission: SubmissionWithDistance,
+  key: ListKey,
+  displaced: RecordEntry | undefined,
+  newHolder: HistoryHolder,
+) {
+  const unit = submission.distance.unit as "time" | "laps";
+  const list = {
+    distanceId: submission.distanceId,
+    gender: submission.gender,
+    recordType: key.recordType,
+    ageCategory: key.ageCategory,
+  };
+  const latest = await tx.recordHistoryEntry.findFirst({ where: list, orderBy: { order: "desc" } });
+  let order = latest?.order ?? 0;
+
+  const holders: HistoryHolder[] = [];
+  if (displaced?.name && !(latest && samePerformance(unit, latest, displaced))) holders.push(displaced);
+  holders.push(newHolder);
+
+  for (const h of holders) {
+    order++;
+    await tx.recordHistoryEntry.create({
+      data: { ...list, order, name: h.name!, time: h.time, laps: h.laps, event: h.event, date: h.date },
+    });
+  }
 }
