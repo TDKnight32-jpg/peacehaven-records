@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isOfficial, isOfficialsAreaConfigured, logInOfficial, logOutOfficial } from "@/lib/officials-auth";
+import type { Distance, RecordSubmission } from "@prisma/client";
+import { approvalMessage, declineMessage, describeChanges } from "@/lib/decision-messages";
 import { publishApprovedSubmission } from "@/lib/record-approval";
+import { getNewRecord, type NewRecord } from "@/lib/record-highlights";
+import { formatRecordTime, timeToSeconds } from "@/lib/record-ranking";
 import { decideSubmission } from "@/lib/submissions";
 
 export type LoginState = { error: string | null };
@@ -26,7 +30,35 @@ export async function logOut(): Promise<void> {
   redirect("/officials/login");
 }
 
-export type DecisionResult = { ok: true; message: string } | { ok: false; error: string };
+/** What the officer's confirmation panel shows after a decision. Only ever
+ * returned to a logged-in official — it includes the submitter's email. */
+export type DecisionOutcome = {
+  id: string;
+  athleteName: string;
+  distanceName: string;
+  performance: string;
+  email: string;
+  /** Ready-made text for the officer to copy and send — never sent automatically. */
+  message: string;
+} & (
+  | {
+      decision: "APPROVED";
+      /** In plain words, e.g. "Now #1 in Men's 10K". */
+      changes: string[];
+      /** Set if it became a #1 — the same check as the Latest records strip and card route. */
+      newRecord: NewRecord | null;
+    }
+  | { decision: "DECLINED"; reason: string }
+);
+
+export type DecisionResult = { ok: true; outcome: DecisionOutcome } | { ok: false; error: string };
+
+/** "35:34" as typed → "00:35:34" as on the records page; laps as "31 laps". */
+function performanceOf(s: RecordSubmission & { distance: Distance }): string {
+  if (s.distance.unit === "laps") return `${s.laps} laps`;
+  const seconds = s.time ? timeToSeconds(s.time) : null;
+  return seconds != null ? formatRecordTime(seconds) : (s.time ?? "");
+}
 
 const ALREADY_DECIDED = "This submission has already been approved or declined — refresh to see the current queue.";
 const MAX_REASON = 500;
@@ -35,23 +67,35 @@ export async function approveSubmission(id: string): Promise<DecisionResult> {
   if (!(await isOfficial())) return { ok: false, error: "Your session has expired — please log in again." };
 
   const outcome = await decideSubmission(id, "APPROVED", {
-    onDecide: async (tx, submission) => ({
-      athlete: submission.athleteName,
-      distance: submission.distance.name,
-      changes: await publishApprovedSubmission(tx, submission),
-    }),
+    onDecide: async (tx, submission) => ({ submission, changes: await publishApprovedSubmission(tx, submission) }),
   });
   if (!outcome?.result) return { ok: false, error: ALREADY_DECIDED };
 
   revalidatePath("/officials");
   revalidatePath("/");
-  const { athlete, distance, changes } = outcome.result;
+  const { submission, changes } = outcome.result;
+  // Read after the approval has committed, so it sees the new history entry.
+  const newRecord = await getNewRecord(id);
+  const performance = performanceOf(submission);
   return {
     ok: true,
-    message:
-      changes.length > 0
-        ? `Approved ${athlete}'s ${distance} — now ${changes.join(" and ")} on the live records.`
-        : `Approved ${athlete}'s ${distance}. It didn't make a top 3, so the live records are unchanged.`,
+    outcome: {
+      decision: "APPROVED",
+      id,
+      athleteName: submission.athleteName,
+      distanceName: submission.distance.name,
+      performance,
+      email: submission.email,
+      changes: describeChanges(changes),
+      newRecord,
+      message: approvalMessage({
+        athleteName: submission.athleteName,
+        distanceName: submission.distance.name,
+        performance,
+        changes,
+        newRecordList: newRecord?.listLabel ?? null,
+      }),
+    },
   };
 }
 
@@ -62,9 +106,31 @@ export async function declineSubmission(id: string, reason: string): Promise<Dec
   if (!note) return { ok: false, error: "Add a short reason for declining." };
   if (note.length > MAX_REASON) return { ok: false, error: `Keep the reason under ${MAX_REASON} characters.` };
 
-  const outcome = await decideSubmission(id, "DECLINED", { declineReason: note });
-  if (!outcome) return { ok: false, error: ALREADY_DECIDED };
+  const outcome = await decideSubmission(id, "DECLINED", {
+    declineReason: note,
+    onDecide: async (_tx, submission) => submission,
+  });
+  if (!outcome?.result) return { ok: false, error: ALREADY_DECIDED };
 
   revalidatePath("/officials");
-  return { ok: true, message: "Submission declined. The reason has been saved with it." };
+  const submission = outcome.result;
+  const performance = performanceOf(submission);
+  return {
+    ok: true,
+    outcome: {
+      decision: "DECLINED",
+      id,
+      athleteName: submission.athleteName,
+      distanceName: submission.distance.name,
+      performance,
+      email: submission.email,
+      reason: note,
+      message: declineMessage({
+        athleteName: submission.athleteName,
+        distanceName: submission.distance.name,
+        performance,
+        reason: note,
+      }),
+    },
+  };
 }

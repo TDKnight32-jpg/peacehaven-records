@@ -2,8 +2,14 @@
 
 import { useState, useTransition } from "react";
 import clsx from "clsx";
-import { approveSubmission, declineSubmission, type DecisionResult } from "@/app/officials/actions";
+import {
+  approveSubmission,
+  declineSubmission,
+  type DecisionOutcome,
+  type DecisionResult,
+} from "@/app/officials/actions";
 import type { PlacementSummary } from "@/lib/record-approval";
+import { RecordCardThumb } from "./record-card-thumb";
 
 export interface QueueSubmission {
   id: string;
@@ -24,41 +30,38 @@ export interface QueueSubmission {
 }
 
 export function OfficialsQueue({ submissions }: { submissions: QueueSubmission[] }) {
-  // Lives above the cards: a decided card drops out of the list (the action
-  // revalidates this page), so its outcome message is shown up here instead.
-  const [notice, setNotice] = useState<string | null>(null);
+  // Live above the cards: a decided card drops out of the list (the action
+  // revalidates this page), so its confirmation is shown up here instead.
+  // Each stays until dismissed (or the page is left), newest first, so a
+  // second decision doesn't take away the first one's card and message.
+  const [decided, setDecided] = useState<DecisionOutcome[]>([]);
 
   return (
     <div className="mt-6 flex flex-col gap-6">
-      {notice && (
-        <div
-          role="status"
-          className="flex items-start justify-between gap-3 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-foreground"
-        >
-          <span>{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="shrink-0 text-muted hover:text-foreground"
-            aria-label="Dismiss"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {decided.map((o) => (
+        <DecisionPanel key={o.id} outcome={o} onDismiss={() => setDecided((d) => d.filter((x) => x.id !== o.id))} />
+      ))}
 
       {submissions.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface p-6 text-center text-muted">
           No pending submissions — you&rsquo;re all caught up.
         </p>
       ) : (
-        submissions.map((s) => <SubmissionCard key={s.id} submission={s} onDecided={setNotice} />)
+        submissions.map((s) => (
+          <SubmissionCard key={s.id} submission={s} onDecided={(o) => setDecided((d) => [o, ...d])} />
+        ))
       )}
     </div>
   );
 }
 
-function SubmissionCard({ submission: s, onDecided }: { submission: QueueSubmission; onDecided: (m: string) => void }) {
+function SubmissionCard({
+  submission: s,
+  onDecided,
+}: {
+  submission: QueueSubmission;
+  onDecided: (outcome: DecisionOutcome) => void;
+}) {
   const [mode, setMode] = useState<"idle" | "approve" | "decline">("idle");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +72,7 @@ function SubmissionCard({ submission: s, onDecided }: { submission: QueueSubmiss
     setError(null);
     startTransition(async () => {
       const result = await action();
-      if (result.ok) onDecided(result.message);
+      if (result.ok) onDecided(result.outcome);
       else setError(result.error);
     });
   }
@@ -226,28 +229,124 @@ function CancelButton({ disabled, onClick }: { disabled: boolean; onClick: () =>
   );
 }
 
-function EmailWithCopy({ email }: { email: string }) {
+/** Shown after approving or declining, until dismissed: what changed, the
+ * new record's share card if it took a #1, and the submitter's email with a
+ * ready-made message to copy. Nothing is sent from here. */
+function DecisionPanel({ outcome: o, onDismiss }: { outcome: DecisionOutcome; onDismiss: () => void }) {
+  const approved = o.decision === "APPROVED";
+  return (
+    <section
+      aria-label={`${approved ? "Approved" : "Declined"}: ${o.athleteName}, ${o.distanceName}`}
+      className={clsx(
+        "overflow-hidden rounded-xl border border-border border-t-4 bg-surface",
+        approved ? "border-t-primary" : "border-t-gp-points-weak",
+      )}
+    >
+      <header className="flex items-start justify-between gap-3 px-5 pt-4">
+        <div>
+          <p
+            className={clsx(
+              "text-xs font-semibold uppercase tracking-wide",
+              approved ? "text-secondary" : "text-gp-points-weak",
+            )}
+          >
+            {approved ? (o.newRecord ? "Approved · new club record" : "Approved") : "Declined"}
+          </p>
+          <h3 className="mt-0.5 text-lg font-bold text-foreground">
+            {o.athleteName}{" "}
+            <span className="font-medium text-muted">
+              · {o.distanceName} · <span className="font-mono">{o.performance}</span>
+            </span>
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="-mr-2 shrink-0 rounded-md px-2 py-1 text-sm font-medium text-muted hover:text-foreground"
+        >
+          Dismiss
+        </button>
+      </header>
+
+      <div
+        className={clsx(
+          "grid gap-5 px-5 pb-5 pt-4",
+          approved && o.newRecord && "sm:grid-cols-[220px_1fr]",
+        )}
+      >
+        {approved && o.newRecord && (
+          <div className="w-full max-w-[260px] sm:max-w-none">
+            <RecordCardThumb record={o.newRecord} cardUrl={`/record-card/${o.id}`} />
+          </div>
+        )}
+
+        <div className="flex min-w-0 flex-col gap-4">
+          {approved ? (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">What changed</h4>
+              <ul className="mt-1 flex flex-col gap-0.5 text-sm font-semibold text-foreground">
+                {o.changes.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Your reason</h4>
+              <p className="mt-1 text-sm text-foreground">{o.reason}</p>
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Submitter</h4>
+            <div className="mt-1 text-sm">
+              <EmailWithCopy email={o.email} />
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Message to send</h4>
+            <p className="mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+              {o.message}
+            </p>
+            <div className="mt-2">
+              <CopyButton text={o.message} label="Copy message" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Clipboard blocked (e.g. non-HTTPS) — the text is still selectable.
+        }
+      }}
+      className="rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium text-muted hover:border-primary/50 hover:text-foreground"
+    >
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
+
+function EmailWithCopy({ email }: { email: string }) {
   return (
     <span className="flex flex-wrap items-center gap-2">
       <a href={`mailto:${email}`} className="break-all font-medium text-primary underline underline-offset-2">
         {email}
       </a>
-      <button
-        type="button"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(email);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          } catch {
-            // Clipboard blocked (e.g. non-HTTPS) — the address is still selectable.
-          }
-        }}
-        className="rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium text-muted hover:border-primary/50 hover:text-foreground"
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
+      <CopyButton text={email} />
     </span>
   );
 }

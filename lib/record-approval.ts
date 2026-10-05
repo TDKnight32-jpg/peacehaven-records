@@ -87,19 +87,32 @@ export async function describePlacements(submission: SubmissionWithDistance): Pr
   );
 }
 
+export interface ListChange {
+  position: number;
+  /** e.g. "Men's 10K" (overall) or "Women's 40-49 5K" — as on the share card. */
+  list: string;
+}
+
+/** A list's name with its distance, the way the share card and Latest
+ * records strip write it: "Men's 10K" for the overall, "Women's 40-49 5K"
+ * for an age group. */
+export function listLabelWithDistance(key: ListKey, distanceName: string): string {
+  return key.recordType === "OVERALL" ? key.label.replace(/ Overall$/, ` ${distanceName}`) : `${key.label} ${distanceName}`;
+}
+
 /**
  * Publishes an approved submission into the live records, inside the
  * approval transaction (see decideSubmission): re-ranks its age-group and
  * overall lists — shifting existing holders down, dropping whoever falls off
  * the top 3, and replacing the athlete's own older entry — and, for each list
  * where it takes #1, appends to that list's history (see recordNewHolder).
- * Footnotes stay with the performance they annotate. Returns a summary of
- * what changed.
+ * Footnotes stay with the performance they annotate. Returns each list it
+ * entered and at what position — empty if it made no top 3.
  */
 export async function publishApprovedSubmission(
   tx: Prisma.TransactionClient,
   submission: SubmissionWithDistance,
-): Promise<string[]> {
+): Promise<ListChange[]> {
   const seconds = submission.time ? timeToSeconds(submission.time) : null;
   const newEntry = {
     name: submission.athleteName,
@@ -110,7 +123,7 @@ export async function publishApprovedSubmission(
     footnoteId: null,
   };
 
-  const changes: string[] = [];
+  const changes: ListChange[] = [];
   for (const key of listsFor(submission)) {
     const current = await currentList(tx, submission, key);
     const p = placement(submission, current);
@@ -141,7 +154,7 @@ export async function publishApprovedSubmission(
         create: { ...slot, ...data },
       });
     }
-    changes.push(`#${p.position} in ${key.label}`);
+    changes.push({ position: p.position, list: listLabelWithDistance(key, submission.distance.name) });
 
     if (p.position === 1) await recordNewHolder(tx, submission, key, current[0], newEntry);
   }

@@ -1,6 +1,6 @@
 import type { Prisma, RecordHistoryEntry } from "@prisma/client";
 import { prisma } from "./db";
-import { GENDER_LABEL, listsFor, performanceText, type ListKey } from "./record-approval";
+import { listLabelWithDistance, listsFor, performanceText, type ListKey } from "./record-approval";
 import { RECORD_LIST_SIZE, formatRecordTime, performanceScore } from "./record-ranking";
 import { normalizeWhitespace } from "./text";
 
@@ -98,11 +98,9 @@ function newRecordFrom(s: PublicSubmission, history: RecordHistoryEntry[]): NewR
   const list = took(overall) ? overall : took(ageGroup) ? ageGroup : null;
   if (!list) return null;
 
-  const gender = GENDER_LABEL[s.gender] ?? s.gender;
-  const scope = list.recordType === "OVERALL" ? gender : `${gender} ${s.ageCategory}`;
   return {
     id: s.id,
-    listLabel: `${scope} ${s.distance.name}`,
+    listLabel: listLabelWithDistance(list, s.distance.name),
     athleteName: s.athleteName,
     unit,
     // As typed on the form ("35:34"); shown like the records page ("00:35:34").
