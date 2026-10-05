@@ -1,0 +1,153 @@
+/* Training logbook — the styles from training-logbook.html, unchanged except
+ * that every rule is scoped under .logbook-page (the wrapper in
+ * app/logbook/layout.tsx). Next keeps a page's stylesheet loaded after you
+ * navigate away, so without that prefix these rules (h1, p, table, ...)
+ * would leak onto the Records and Grand Prix pages. The mock-up's :root and
+ * body rules live on .logbook-page itself; the prefix adds the same weight
+ * to every selector, so which rule wins is the same as in the mock-up.
+ * Fonts come from next/font in the layout (--font-bowlby-one, --font-barlow). */
+
+html:has(.logbook-page){scroll-padding-top:env(safe-area-inset-top,0px)}
+body:has(.logbook-page){margin:0;background:#FFFFFF}
+
+.logbook-page{
+  box-sizing:border-box;
+  color-scheme:light;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#FFFFFF; --panel:#FBF6E9; --ink:#3A2216; --muted:#75533C; --rule:#3A2216;
+  --slab:#1B4D33; --slab-ink:#FAF0D7; --slab-accent:#E2A21B;
+  --teal:#1E6A44; --mustard:#E2A21B; --orange:#D4521F; --red:#A8321C; --brown:#5A2E1A;
+  --display:var(--font-bowlby-one),"Arial Black","Helvetica Neue",Impact,sans-serif;
+  --body:var(--font-barlow),"Helvetica Neue",Arial,sans-serif;
+  flex:1;
+  background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;
+  -webkit-font-smoothing:auto;-moz-osx-font-smoothing:auto;
+}
+.logbook-page *,.logbook-page *::before,.logbook-page *::after{box-sizing:inherit}
+.logbook-page .wrap{max-width:720px;margin:0 auto;padding:0 20px 56px}
+
+/* Header with the track bend */
+.logbook-page .top{position:relative;overflow:hidden;padding:104px 20px 28px;max-width:720px;margin:0 auto}
+.logbook-page .bend{position:absolute;top:0;right:20px;width:268px;height:134px}
+/* On narrow screens the bend would sit on top of the club name and title, so
+ * start the text just below it (134px bend + 16px gap) instead. */
+@media (max-width:599px){.logbook-page .top{padding-top:150px}}
+.logbook-page .club{font-weight:600;margin:0 0 4px;color:var(--teal)}
+.logbook-page h1{font-family:var(--display);font-weight:400;font-size:clamp(2.5rem,11.5vw,4.6rem);line-height:.95;margin:0;letter-spacing:-.01em;position:relative}
+.logbook-page .intro{margin:14px 0 0;max-width:34ch;font-size:1.1rem}
+.logbook-page .stripes{height:18px;display:grid;grid-template-rows:repeat(3,1fr)}
+.logbook-page .stripes i{display:block}
+.logbook-page .stripes i:nth-child(1){background:var(--teal)}
+.logbook-page .stripes i:nth-child(2){background:var(--mustard)}
+.logbook-page .stripes i:nth-child(3){background:var(--orange)}
+
+.logbook-page h2{font-family:var(--display);font-weight:400;font-size:1.55rem;line-height:1.1;margin:44px 0 14px}
+.logbook-page p{margin:0 0 12px}
+
+/* Form */
+.logbook-page fieldset{border:0;padding:0;margin:26px 0 0;min-width:0}
+.logbook-page legend{padding:0;font-weight:700;margin-bottom:8px}
+.logbook-page .chips{display:flex;flex-wrap:wrap;gap:8px}
+.logbook-page .chips label{position:relative}
+.logbook-page .chips input{position:absolute;opacity:0;inset:0;margin:0}
+.logbook-page .chips span{display:block;padding:10px 14px;border:2px solid var(--rule);border-radius:999px;font-weight:600;background:var(--panel)}
+.logbook-page .chips input:checked + span{background:var(--slab);color:var(--slab-ink)}
+.logbook-page .chips input:focus-visible + span{outline:3px solid var(--orange);outline-offset:2px}
+.logbook-page .time{display:flex;gap:10px}
+.logbook-page .time label{flex:1;font-size:.9rem;color:var(--muted);font-weight:600}
+.logbook-page .time input{display:block;width:100%;margin-top:4px;padding:10px 8px;font:400 1.7rem var(--display);text-align:center;color:var(--ink);background:var(--panel);border:2px solid var(--rule);border-radius:10px}
+.logbook-page .time input:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.logbook-page .error{margin-top:14px;padding:12px 14px;border:2px solid var(--red);border-radius:10px;background:var(--panel);font-weight:600}
+
+/* Goal slab */
+.logbook-page .goal{margin-top:30px;background:var(--slab);color:var(--slab-ink);border-radius:14px;padding:22px 20px;border-bottom:8px solid var(--slab-accent)}
+.logbook-page .goal .what{margin:0;font-weight:600}
+.logbook-page .goal .pace{font-family:var(--display);font-size:clamp(3rem,16vw,5rem);line-height:1;margin:6px 0 2px}
+.logbook-page .goal .unit{font-weight:600;font-size:1.1rem;margin:0}
+.logbook-page .goal .score{margin:14px 0 0;font-size:.98rem}
+
+/* Lanes */
+.logbook-page .lanes{list-style:none;margin:0;padding:0;border:2px solid var(--rule);border-radius:14px;overflow:hidden;background:var(--panel)}
+.logbook-page .lanes li{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:14px;padding-right:14px;border-top:2px solid var(--rule)}
+.logbook-page .lanes li:first-child{border-top:0}
+.logbook-page .num{align-self:stretch;display:grid;place-items:center;font:400 1.5rem var(--display);color:#FAF0D7;min-height:74px}
+.logbook-page .l1 .num{background:var(--teal)} .logbook-page .l2 .num{background:var(--mustard);color:#2B1A12}
+.logbook-page .l3 .num{background:var(--orange)} .logbook-page .l4 .num{background:var(--red)} .logbook-page .l5 .num{background:var(--brown)}
+.logbook-page .l6 .num{background:var(--slab)}
+.logbook-page .lanes b{display:block;font-size:1.08rem}
+.logbook-page .lanes small{display:block;color:var(--muted);font-size:.9rem;line-height:1.3}
+.logbook-page .lanes .p{font:400 1.25rem var(--display);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.logbook-page .lanes .p em{display:block;font:600 .8rem var(--body);color:var(--muted);font-style:normal}
+
+/* Splits */
+.logbook-page details{border:2px solid var(--rule);border-radius:14px;background:var(--panel);overflow:hidden}
+.logbook-page summary{padding:14px 16px;font-weight:700;cursor:pointer}
+.logbook-page summary:focus-visible{outline:3px solid var(--orange);outline-offset:-3px}
+.logbook-page .scroll{overflow-x:auto}
+.logbook-page table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.logbook-page th,.logbook-page td{padding:9px 16px;text-align:left;border-top:1px solid color-mix(in srgb,var(--rule) 25%,transparent)}
+.logbook-page th{font-weight:600;color:var(--muted);font-size:.9rem}
+.logbook-page td:last-child,.logbook-page th:last-child{text-align:right;font-weight:700}
+.logbook-page tr.finish td{background:var(--mustard);color:#2B1A12;font-weight:700}
+
+/* Recent race mode: equivalent times at every distance, their race highlighted */
+.logbook-page .table-box{border:2px solid var(--rule);border-radius:14px;background:var(--panel);overflow:hidden}
+.logbook-page .table-box thead th{border-top:0}
+.logbook-page .equiv td:nth-child(2),.logbook-page .equiv th:nth-child(2){text-align:right}
+.logbook-page .equiv td:nth-child(2){font-weight:700}
+.logbook-page .equiv th{white-space:nowrap}
+.logbook-page .equiv td:last-child{font-weight:400;color:var(--muted)}
+.logbook-page .equiv tr.yours td{background:var(--mustard);color:#2B1A12;font-weight:700}
+
+/* Workouts */
+.logbook-page .sessions{display:grid;gap:12px}
+.logbook-page .session{background:var(--panel);border:2px solid var(--rule);border-left-width:12px;border-radius:12px;padding:14px 16px}
+.logbook-page .session h3{margin:0 0 4px;font-size:1.12rem;font-weight:700}
+.logbook-page .session p{margin:0}
+.logbook-page .session .big{font:400 1.2rem var(--display);font-variant-numeric:tabular-nums}
+.logbook-page .s-T{border-left-color:var(--orange)} .logbook-page .s-I{border-left-color:var(--red)} .logbook-page .s-R{border-left-color:var(--brown)}
+.logbook-page .s-E{border-left-color:var(--teal)} .logbook-page .s-G{border-left-color:var(--mustard)}
+.logbook-page .s-F{border-left-color:var(--slab)}
+.logbook-page .note{color:var(--muted);font-size:.95rem;margin-top:16px}
+.logbook-page footer{margin-top:44px;padding-top:16px;border-top:2px solid var(--rule);color:var(--muted);font-size:.9rem}
+
+/* Links (Tailwind's base styles strip the browser's colour and underline) */
+.logbook-page a{color:var(--teal);font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.logbook-page a:hover{color:var(--ink)}
+.logbook-page a:focus-visible{outline:3px solid var(--orange);outline-offset:2px;border-radius:2px}
+.logbook-page .lanes-link{margin:-4px 0 14px}
+
+/* Links between the logbook pages, under the header stripes. Pills like the
+ * form's chips; the current page is filled in like a checked chip. */
+.logbook-page .pages{max-width:720px;margin:0 auto;padding:18px 20px 0}
+.logbook-page .pages ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.logbook-page .pages a{display:block;padding:8px 14px;border:2px solid var(--rule);border-radius:999px;background:var(--panel);color:var(--ink);font-weight:600;text-decoration:none}
+.logbook-page .pages a:hover{background:#F3E9CF}
+.logbook-page .pages a[aria-current="page"]{background:var(--slab);color:var(--slab-ink)}
+
+/* Reading pages (definitions, warm ups): one card per item, numbered and
+ * coloured like the calculator's lanes */
+.logbook-page .cards{list-style:none;margin:26px 0 0;padding:0;display:grid;gap:12px}
+.logbook-page .card{display:grid;grid-template-columns:52px 1fr;background:var(--panel);border:2px solid var(--rule);border-radius:14px;overflow:hidden}
+.logbook-page .card > div{padding:14px 16px}
+.logbook-page .card h2{margin:0 0 8px;font-size:1.3rem}
+.logbook-page .card dl{margin:0;display:grid;gap:8px}
+.logbook-page .card dt{font-weight:700;font-size:.9rem;color:var(--muted)}
+.logbook-page .card dd{margin:0;line-height:1.35}
+.logbook-page .card dd ul{list-style:disc;margin:6px 0 0;padding-left:1.25em}
+.logbook-page .card dd li + li{margin-top:2px}
+
+/* Recent race mode: maintain or get quicker, and the next target */
+.logbook-page .advice{display:grid;gap:12px}
+.logbook-page .advice article{background:var(--panel);border:2px solid var(--rule);border-left-width:12px;border-radius:12px;padding:14px 16px}
+.logbook-page .advice h3{margin:0 0 6px;font-size:1.12rem;font-weight:700}
+.logbook-page .advice p{margin:0 0 8px}
+.logbook-page .advice p:last-child{margin:0}
+.logbook-page .advice .a-maintain{border-left-color:var(--teal)}
+.logbook-page .advice .a-quicker{border-left-color:var(--orange)}
+.logbook-page .next{margin-top:22px}
+.logbook-page .next p{margin:0 0 12px;font-size:1.1rem}
+.logbook-page .cta{display:inline-block;padding:12px 18px;border:2px solid var(--rule);border-radius:999px;background:var(--slab);color:var(--slab-ink);font:700 1rem var(--body);cursor:pointer}
+.logbook-page .cta:hover{background:var(--teal)}
+.logbook-page .cta:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
