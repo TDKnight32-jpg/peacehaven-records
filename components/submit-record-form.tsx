@@ -1,10 +1,11 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { submitRecord, type SubmitField, type SubmitState } from "@/app/submit/actions";
 import type { SubmitDistanceOption } from "@/lib/submissions";
+import type { TimeToBeat } from "@/lib/record-highlights";
 import { MAX_PHOTO_BYTES, PHOTO_ACCEPT } from "@/lib/submission-photo";
 import { ToggleGroup } from "./toggle-group";
 
@@ -52,12 +53,64 @@ function Field({
   );
 }
 
+/** The current #1 and #3 for the list the submitter has picked, read fresh
+ * from the server each time the choice changes. Information only — a slower
+ * time can still be submitted. */
+function TimeToBeatNote({ distanceSlug, gender, ageCategory }: { distanceSlug: string; gender: "F" | "M"; ageCategory: string }) {
+  const query = distanceSlug && ageCategory ? new URLSearchParams({ distance: distanceSlug, gender, ageCategory }).toString() : "";
+  // Keyed by query, so a stale answer for a previous choice is never shown.
+  const [lookup, setLookup] = useState<{ query: string; data: TimeToBeat | null } | null>(null);
+
+  useEffect(() => {
+    if (!query) return;
+    const controller = new AbortController();
+    fetch(`/submit/time-to-beat?${query}`, { signal: controller.signal, cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<TimeToBeat>) : null))
+      .then((data) => setLookup({ query, data }))
+      .catch(() => {
+        if (!controller.signal.aborted) setLookup({ query, data: null });
+      });
+    return () => controller.abort();
+  }, [query]);
+
+  if (!query) return null;
+  const data = lookup?.query === query ? lookup.data : undefined;
+  // A failed lookup just shows nothing — the form works without it.
+  if (data === null) return null;
+
+  let text: React.ReactNode;
+  if (data === undefined) {
+    text = <span className="text-muted">Checking the current records…</span>;
+  } else if (!data.record) {
+    text = <>No record yet for {ageCategory} — any {data.unit === "laps" ? "lap count" : "time"} makes the top 3.</>;
+  } else {
+    const perf = (p: string) => <span className={clsx("font-semibold", data.unit === "time" && "font-mono")}>{p}</span>;
+    text = (
+      <>
+        Current record: {perf(data.record.performance)} ({data.record.name}).{" "}
+        {data.cutoff ? (
+          <>To make the top 3: beat {perf(data.cutoff)}.</>
+        ) : (
+          <>Fewer than 3 on the list, so any {data.unit === "laps" ? "lap count" : "time"} makes the top 3.</>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <p aria-live="polite" className="rounded-md border-l-2 border-gp-gold-edge bg-gp-row-gold/60 px-2.5 py-1.5 text-xs text-foreground">
+      {text}
+    </p>
+  );
+}
+
 const INITIAL: SubmitState = { status: "idle" };
 
 export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOption[] }) {
   const [state, formAction, pending] = useActionState(submitRecord, INITIAL);
   const [distanceSlug, setDistanceSlug] = useState("");
   const [gender, setGender] = useState<"F" | "M">("F");
+  const [ageCategory, setAgeCategory] = useState("");
   // "Submit another" hides this success result and remounts the form so the
   // uncontrolled fields start empty again.
   const [dismissed, setDismissed] = useState<SubmitState | null>(null);
@@ -96,6 +149,7 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
               setDismissed(state);
               setFormKey((k) => k + 1);
               setDistanceSlug("");
+              setAgeCategory("");
               setPhotoName(null);
               setPhotoTooBig(false);
             }}
@@ -135,7 +189,10 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
               id="distance"
               name="distance"
               value={distanceSlug}
-              onChange={(e) => setDistanceSlug(e.target.value)}
+              onChange={(e) => {
+                setDistanceSlug(e.target.value);
+                setAgeCategory("");
+              }}
               className={inputClass}
               {...aria("distance", "distance")}
             >
@@ -171,6 +228,7 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
               id="ageCategory"
               name="ageCategory"
               defaultValue=""
+              onChange={(e) => setAgeCategory(e.target.value)}
               disabled={!distance}
               className={clsx(inputClass, "disabled:opacity-60")}
               {...aria("ageCategory", "ageCategory")}
@@ -186,35 +244,38 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
             </select>
           </Field>
 
-          {distance?.unit === "laps" ? (
-            <Field id="performance" label="Laps completed" hint="Whole laps only." error={errors.performance}>
-              <input
+          <div className="flex flex-col gap-2">
+            {distance?.unit === "laps" ? (
+              <Field id="performance" label="Laps completed" hint="Whole laps only." error={errors.performance}>
+                <input
+                  id="performance"
+                  name="performance"
+                  inputMode="numeric"
+                  placeholder="e.g. 24"
+                  className={inputClass}
+                  {...aria("performance", "performance")}
+                />
+              </Field>
+            ) : (
+              <Field
                 id="performance"
-                name="performance"
-                inputMode="numeric"
-                placeholder="e.g. 24"
-                className={inputClass}
-                {...aria("performance", "performance")}
-              />
-            </Field>
-          ) : (
-            <Field
-              id="performance"
-              label="Time"
-              hint="mm:ss, or h:mm:ss if over an hour — e.g. 19:42 or 1:28:05."
-              error={errors.performance}
-            >
-              <input
-                id="performance"
-                name="performance"
-                inputMode="numeric"
-                placeholder="h:mm:ss"
-                autoComplete="off"
-                className={clsx(inputClass, "font-mono")}
-                {...aria("performance", "performance")}
-              />
-            </Field>
-          )}
+                label="Time"
+                hint="mm:ss, or h:mm:ss if over an hour — e.g. 19:42 or 1:28:05."
+                error={errors.performance}
+              >
+                <input
+                  id="performance"
+                  name="performance"
+                  inputMode="numeric"
+                  placeholder="h:mm:ss"
+                  autoComplete="off"
+                  className={clsx(inputClass, "font-mono")}
+                  {...aria("performance", "performance")}
+                />
+              </Field>
+            )}
+            <TimeToBeatNote distanceSlug={distanceSlug} gender={gender} ageCategory={ageCategory} />
+          </div>
         </div>
       </fieldset>
 

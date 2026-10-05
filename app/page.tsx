@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getRecordsData } from "@/lib/records";
+import { getLatestRecords } from "@/lib/record-highlights";
 import { SiteHeader } from "@/components/site-header";
 import { RecordsExplorer } from "@/components/records-explorer";
+import { LatestRecords } from "@/components/latest-records";
 
 // Records change when an official approves a submission (and the pending
 // count with every submission), not on redeploy — so this page must fetch
@@ -11,10 +13,11 @@ import { RecordsExplorer } from "@/components/records-explorer";
 export const revalidate = 0;
 
 export default async function Home() {
-  const [{ distances, records, history }, pendingCount] = await Promise.all([
+  const [{ distances, records, history }, pendingCount, latestRecords] = await Promise.all([
     getRecordsData(),
     // Public page: only the number is rendered, never any submission details.
     prisma.recordSubmission.count({ where: { status: "PENDING" } }),
+    getLatestRecords(),
   ]);
 
   return (
@@ -48,6 +51,11 @@ export default async function Home() {
             )}
           </Link>
         </div>
+        {latestRecords.length > 0 && (
+          <div className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6">
+            <LatestRecords records={latestRecords} />
+          </div>
+        )}
         <Suspense fallback={null}>
           <RecordsExplorer distances={distances} records={records} history={history} />
         </Suspense>

@@ -13,16 +13,16 @@ import { normalizeWhitespace } from "./text";
 type Db = typeof prisma | Prisma.TransactionClient;
 type SubmissionWithDistance = RecordSubmission & { distance: Distance };
 
-const GENDER_LABEL: Record<string, string> = { F: "Women's", M: "Men's" };
+export const GENDER_LABEL: Record<string, string> = { F: "Women's", M: "Men's" };
 
-interface ListKey {
+export interface ListKey {
   recordType: "AGE_GROUP" | "OVERALL";
   ageCategory: string; // "" for OVERALL, as stored on RecordEntry
   label: string;
 }
 
 /** The two lists a submission competes in: its age group and the overall. */
-function listsFor(s: RecordSubmission): ListKey[] {
+export function listsFor(s: Pick<RecordSubmission, "gender" | "ageCategory">): ListKey[] {
   const gender = GENDER_LABEL[s.gender] ?? s.gender;
   return [
     { recordType: "AGE_GROUP", ageCategory: s.ageCategory, label: `${gender} ${s.ageCategory}` },
@@ -57,7 +57,7 @@ export interface PlacementSummary {
   entersList: boolean;
 }
 
-function performanceText(unit: string, e: { time: string | null; laps: number | null }): string {
+export function performanceText(unit: string, e: { time: string | null; laps: number | null }): string {
   return unit === "laps" ? `${e.laps} laps` : (e.time ?? "—");
 }
 
