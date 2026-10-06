@@ -314,3 +314,36 @@ export function calculateRecentRace(
     nextTarget,
   };
 }
+
+// "Hilly course?": a rule of thumb from Jack Daniels' hill estimates. Each
+// metre climbed costs about 4.1 metres on the flat and each metre descended
+// gives back about 2.4, so
+//   equivalent flat distance = distance + 4.1 x climb - 2.4 x descent
+//   hill-adjusted time       = goal time x equivalent flat distance / distance
+// Climb or descent over 10% of the distance is too steep for this estimate.
+export type HillEstimate =
+  | { steep: true }
+  | { steep: false; time: string; pace: string; unitName: string; difference: string; direction: "slower" | "quicker" | "same" };
+
+export function hillEstimate(
+  key: DistanceKey,
+  unit: PaceUnit,
+  goalSeconds: number,
+  climb: number,
+  descent: number,
+): HillEstimate {
+  const d = DISTANCES[key].m;
+  if (climb > d * 0.1 || descent > d * 0.1) return { steep: true };
+  const { uName, pace } = unitHelpers(unit);
+  const flat = d + 4.1 * climb - 2.4 * descent;
+  const seconds = (goalSeconds * flat) / d;
+  const diff = Math.round(seconds) - Math.round(goalSeconds);
+  return {
+    steep: false,
+    time: clock(seconds),
+    pace: pace(d / (seconds / 60)),
+    unitName: uName,
+    difference: clock(Math.abs(diff)),
+    direction: diff > 0 ? "slower" : diff < 0 ? "quicker" : "same",
+  };
+}

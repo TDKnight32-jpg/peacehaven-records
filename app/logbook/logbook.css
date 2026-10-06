@@ -158,3 +158,13 @@ body:has(.logbook-page){margin:0;background:#FFFFFF}
 .logbook-page .bands td:first-child{font-weight:700;white-space:nowrap}
 .logbook-page .bands tr.yours td{background:var(--mustard);color:#2B1A12;font-weight:700}
 .logbook-page .credit{margin-top:16px;color:var(--muted);font-size:.9rem}
+
+/* Calculator: "Hilly course?" inputs and the "On this course" card */
+.logbook-page .time.hills input{font-size:1.4rem}
+.logbook-page .tick{display:flex;align-items:center;gap:10px;margin-top:12px;font-weight:600}
+.logbook-page .tick input{width:22px;height:22px;margin:0;accent-color:var(--slab)}
+.logbook-page .tick input:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.logbook-page .hill-card{margin-top:16px;background:var(--panel);border:2px solid var(--rule);border-left:12px solid var(--brown);border-radius:12px;padding:14px 16px}
+.logbook-page .hill-card h3{margin:0 0 6px;font-size:1.12rem;font-weight:700}
+.logbook-page .hill-card p{margin:0 0 8px}
+.logbook-page .hill-card .hill-note{margin:10px 0 0;color:var(--muted);font-size:.9rem;line-height:1.35}

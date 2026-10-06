@@ -6,6 +6,7 @@ import {
   DISTANCES,
   calculateLogbook,
   calculateRecentRace,
+  hillEstimate,
   parseTimePart,
   type CalculatorMode,
   type DistanceKey,
@@ -24,10 +25,22 @@ export function LogbookCalculator() {
   const [hours, setHours] = useState("1");
   const [minutes, setMinutes] = useState("15");
   const [seconds, setSeconds] = useState("0");
+  const [climb, setClimb] = useState("");
+  const [sameStartFinish, setSameStartFinish] = useState(true);
+  const [descent, setDescent] = useState("");
 
   const time = [parseTimePart(hours), parseTimePart(minutes), parseTimePart(seconds)] as const;
   const goal = mode === "goal" ? calculateLogbook(dist, unit, ...time) : null;
   const race = mode === "race" ? calculateRecentRace(dist, unit, ...time) : null;
+
+  // "Hilly course?" is ignored until a climb is entered. An empty descent box
+  // counts as no descent.
+  const climbMetres = metres(climb);
+  const descentMetres = sameStartFinish ? climbMetres : (metres(descent) ?? 0);
+  const hill =
+    goal?.ok && climbMetres !== null
+      ? hillEstimate(dist, unit, time[0] * 3600 + time[1] * 60 + time[2], climbMetres, descentMetres!)
+      : null;
   const result = goal ?? race!;
 
   // Like the mock-up, every change re-decides whether the splits start open
@@ -129,6 +142,28 @@ export function LogbookCalculator() {
           </div>
         </fieldset>
 
+        {mode === "goal" && (
+          <fieldset>
+            <legend>Hilly course?</legend>
+            <div className="time hills">
+              <label>
+                Total climb (metres)
+                <input type="number" inputMode="numeric" min={0} value={climb} onChange={(e) => setClimb(e.target.value)} />
+              </label>
+              {!sameStartFinish && (
+                <label>
+                  Total descent (metres)
+                  <input type="number" inputMode="numeric" min={0} value={descent} onChange={(e) => setDescent(e.target.value)} />
+                </label>
+              )}
+            </div>
+            <label className="tick">
+              <input type="checkbox" checked={sameStartFinish} onChange={(e) => setSameStartFinish(e.target.checked)} />
+              Starts and finishes at the same place
+            </label>
+          </fieldset>
+        )}
+
         <fieldset>
           <legend>Show paces</legend>
           <div className="chips">
@@ -159,6 +194,32 @@ export function LogbookCalculator() {
                 Pace score <strong>{goal.score}</strong>
               </p>
             </section>
+
+            {hill && (
+              <section className="hill-card" aria-live="polite">
+                <h3>On this course</h3>
+                {hill.steep ? (
+                  <p>{"That's too steep for this estimate."}</p>
+                ) : (
+                  <>
+                    <p>
+                      The same effort as your goal would take about <strong>{hill.time}</strong> ({hill.pace}{" "}
+                      {hill.unitName}).
+                    </p>
+                    <p>
+                      {hill.direction === "same"
+                        ? "That's about the same as on a flat course."
+                        : `That's about ${hill.difference} ${hill.direction} than on a flat course.`}
+                    </p>
+                  </>
+                )}
+                <p className="hill-note">
+                  This is an estimate. Each metre you climb costs about the same as 4 extra metres on the flat, and you
+                  only get some of it back on the way down. It works for road and gentle trail hills, not steep fell
+                  running.
+                </p>
+              </section>
+            )}
 
             <h2>Training paces</h2>
             {lanesLink}
@@ -288,4 +349,11 @@ export function LogbookCalculator() {
       </div>
     </>
   );
+}
+
+// A metres box: empty, junk or negative counts as not entered.
+function metres(value: string): number | null {
+  if (value.trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
