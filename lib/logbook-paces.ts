@@ -64,7 +64,7 @@ function raceMinutes(d: number, score: number) {
   return d / raceV(d, d / 500, d / 40, score);
 }
 
-function clock(sec: number) {
+export function clock(sec: number) {
   sec = Math.round(sec);
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);

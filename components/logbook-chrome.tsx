@@ -9,6 +9,7 @@ const PAGES = [
   { id: "calculator", href: "/logbook", label: "Pace calculator" },
   { id: "definitions", href: "/logbook/definitions", label: "Training definitions" },
   { id: "warm-up", href: "/logbook/warm-up", label: "Warm ups and cool downs" },
+  { id: "age-grading", href: "/logbook/age-grading", label: "Age grading" },
 ] as const;
 
 export type LogbookPageId = (typeof PAGES)[number]["id"];
@@ -62,10 +63,12 @@ export function LogbookHeader({
   );
 }
 
-export function LogbookFooter() {
+// The pace formulas line only belongs on pages that show paces; the age
+// grading page passes paceFormulas={false}.
+export function LogbookFooter({ paceFormulas = true }: { paceFormulas?: boolean }) {
   return (
     <footer>
-      <p>Paces are worked out with the Daniels and Gilbert running formulas.</p>
+      {paceFormulas && <p>Paces are worked out with the Daniels and Gilbert running formulas.</p>}
       <p>Made in collaboration with Tommy Knight Coaching.</p>
     </footer>
   );

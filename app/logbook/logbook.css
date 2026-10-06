@@ -151,3 +151,10 @@ body:has(.logbook-page){margin:0;background:#FFFFFF}
 .logbook-page .cta{display:inline-block;padding:12px 18px;border:2px solid var(--rule);border-radius:999px;background:var(--slab);color:var(--slab-ink);font:700 1rem var(--body);cursor:pointer}
 .logbook-page .cta:hover{background:var(--teal)}
 .logbook-page .cta:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+
+/* Age grading page */
+.logbook-page .time.age{max-width:120px}
+.logbook-page .bands td:last-child,.logbook-page .bands th:last-child{text-align:left;font-weight:400}
+.logbook-page .bands td:first-child{font-weight:700;white-space:nowrap}
+.logbook-page .bands tr.yours td{background:var(--mustard);color:#2B1A12;font-weight:700}
+.logbook-page .credit{margin-top:16px;color:var(--muted);font-size:.9rem}
