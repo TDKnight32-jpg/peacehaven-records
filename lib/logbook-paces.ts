@@ -343,7 +343,8 @@ export function hillEstimate(
     time: clock(seconds),
     pace: pace(d / (seconds / 60)),
     unitName: uName,
-    difference: clock(Math.abs(diff)),
+    // Under a minute reads better in words: "36 seconds", not "0:36".
+    difference: Math.abs(diff) < 60 ? `${Math.abs(diff)} second${Math.abs(diff) === 1 ? "" : "s"}` : clock(Math.abs(diff)),
     direction: diff > 0 ? "slower" : diff < 0 ? "quicker" : "same",
   };
 }

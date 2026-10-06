@@ -34,9 +34,9 @@ export function LogbookCalculator() {
   const race = mode === "race" ? calculateRecentRace(dist, unit, ...time) : null;
 
   // "Hilly course?" is ignored until a climb is entered. An empty descent box
-  // counts as no descent.
-  const climbMetres = metres(climb);
-  const descentMetres = sameStartFinish ? climbMetres : (metres(descent) ?? 0);
+  // counts as no descent. Entered in feet; hillEstimate works in metres.
+  const climbMetres = feetToMetres(climb);
+  const descentMetres = sameStartFinish ? climbMetres : (feetToMetres(descent) ?? 0);
   const hill =
     goal?.ok && climbMetres !== null
       ? hillEstimate(dist, unit, time[0] * 3600 + time[1] * 60 + time[2], climbMetres, descentMetres!)
@@ -147,12 +147,12 @@ export function LogbookCalculator() {
             <legend>Hilly course?</legend>
             <div className="time hills">
               <label>
-                Total climb (metres)
+                Total climb (feet)
                 <input type="number" inputMode="numeric" min={0} value={climb} onChange={(e) => setClimb(e.target.value)} />
               </label>
               {!sameStartFinish && (
                 <label>
-                  Total descent (metres)
+                  Total descent (feet)
                   <input type="number" inputMode="numeric" min={0} value={descent} onChange={(e) => setDescent(e.target.value)} />
                 </label>
               )}
@@ -214,9 +214,8 @@ export function LogbookCalculator() {
                   </>
                 )}
                 <p className="hill-note">
-                  This is an estimate. Each metre you climb costs about the same as 4 extra metres on the flat, and you
-                  only get some of it back on the way down. It works for road and gentle trail hills, not steep fell
-                  running.
+                  This is an estimate. Each foot you climb costs about the same as 4 extra feet on the flat, and you only
+                  get some of it back on the way down. It works for road and gentle trail hills, not steep fell running.
                 </p>
               </section>
             )}
@@ -351,9 +350,9 @@ export function LogbookCalculator() {
   );
 }
 
-// A metres box: empty, junk or negative counts as not entered.
-function metres(value: string): number | null {
+// A feet box, converted to metres: empty, junk or negative counts as not entered.
+function feetToMetres(value: string): number | null {
   if (value.trim() === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  const feet = Number(value);
+  return Number.isFinite(feet) && feet >= 0 ? feet * 0.3048 : null;
 }
