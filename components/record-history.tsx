@@ -15,12 +15,24 @@ function performance(e: ClientHistoryEntry): string {
   return e.time ?? `${e.laps} laps`;
 }
 
-/** One list's progression of #1 holders, oldest first; the last is current. */
+/** The current holders: the last entry, plus anyone just before it who
+ * holds the same performance — they share the record. */
+function currentHolders(entries: ClientHistoryEntry[]): ClientHistoryEntry[] {
+  const last = entries[entries.length - 1];
+  let start = entries.length - 1;
+  while (start > 0 && performance(entries[start - 1]) === performance(last)) start--;
+  return entries.slice(start);
+}
+
+/** One list's progression of #1 holders, oldest first; the last is current.
+ * Someone who equalled the record is shown as "Equalled", and shares it. */
 function Timeline({ entries }: { entries: ClientHistoryEntry[] }) {
+  const current = currentHolders(entries);
   return (
     <ol className="mt-2 flex flex-col gap-3 border-l-2 border-border pl-4">
       {entries.map((e, i) => {
-        const isCurrent = i === entries.length - 1;
+        const isCurrent = current.includes(e);
+        const equalled = i > 0 && performance(e) === performance(entries[i - 1]);
         return (
           <li key={e.id} className="relative">
             <span
@@ -33,7 +45,12 @@ function Timeline({ entries }: { entries: ClientHistoryEntry[] }) {
               <span className="font-mono text-sm font-semibold text-primary">{performance(e)}</span>
             </div>
             <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted">
-              {isCurrent && <span className="font-semibold text-secondary">Current record ·</span>}
+              {isCurrent && (
+                <span className="font-semibold text-secondary">
+                  {current.length > 1 ? "Joint current record" : "Current record"} ·
+                </span>
+              )}
+              {equalled && <span className="font-semibold text-gp-gold">Equalled ·</span>}
               {e.event && <span>{e.event}</span>}
               {e.date && <span>· {formatDate(e.date)}</span>}
             </div>
@@ -58,7 +75,7 @@ function CategoryRows({ entries }: { entries: ClientHistoryEntry[] }) {
   return (
     <div className="mt-2 flex flex-col gap-2">
       {categories.map(([category, list]) => {
-        const current = list[list.length - 1];
+        const holders = currentHolders(list);
         return (
           <details key={category} className="group rounded-lg border border-border bg-background px-3 py-2">
             <summary className="flex cursor-pointer select-none flex-wrap items-baseline gap-x-2 text-sm">
@@ -67,7 +84,9 @@ function CategoryRows({ entries }: { entries: ClientHistoryEntry[] }) {
                 {list.length} record{list.length === 1 ? "" : "s"}
               </span>
               <span className="ml-auto text-xs text-muted group-open:hidden">
-                {current.name} · <span className="font-mono font-semibold text-primary">{performance(current)}</span>
+                {holders.map((h) => h.name).join(" & ")}
+                {holders.length > 1 && " (joint)"} ·{" "}
+                <span className="font-mono font-semibold text-primary">{performance(holders[0])}</span>
               </span>
             </summary>
             <div className="pb-1 pt-1">

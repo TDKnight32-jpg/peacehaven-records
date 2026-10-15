@@ -110,9 +110,10 @@ function TimeToBeatNote({ distanceSlug, gender, ageCategory }: { distanceSlug: s
     const perf = (p: string) => <span className={clsx("font-semibold", data.unit === "time" && "font-mono")}>{p}</span>;
     text = (
       <>
-        Current record: {perf(data.record.performance)} ({data.record.name}).{" "}
+        Current record: {perf(data.record.performance)} ({data.record.name}
+        {data.record.joint && ", joint"}).{" "}
         {data.cutoff ? (
-          <>To make the top 3: beat {perf(data.cutoff)}.</>
+          <>To make the top 3: match or beat {perf(data.cutoff)}.</>
         ) : (
           <>Fewer than 3 on the list, so any {data.unit === "laps" ? "lap count" : "time"} makes the top 3.</>
         )}

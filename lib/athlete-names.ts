@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { GENDER_LABEL, performanceText } from "./record-approval";
+import { isJointPlace, placeLabel, placesOf } from "./record-ranking";
 import { levenshteinDistance, normalizeWhitespace } from "./text";
 
 // Record lists match athletes by name (normalizeWhitespace — see
@@ -12,7 +13,7 @@ export interface KnownAthlete {
    * only in the history). */
   name: string;
   gender: "F" | "M";
-  /** Where they appear on the live lists, e.g. "Women's Overall Back Yard Ultra #3 (6 laps)". */
+  /** Where they appear on the live lists, e.g. "Women's Overall Back Yard Ultra joint 1st (10 laps)". */
   appearances: string[];
 }
 
@@ -39,10 +40,22 @@ export async function getKnownAthletes(): Promise<KnownAthlete[]> {
     return a;
   };
 
+  // Places are shared by exactly equal results, so they're worked out per list.
+  const lists = new Map<string, typeof entries>();
+  for (const e of entries) {
+    const key = [e.distanceId, e.gender, e.recordType, e.ageCategory].join("|");
+    lists.set(key, [...(lists.get(key) ?? []), e]);
+  }
+  const placeOf = new Map<string, string>();
+  for (const list of lists.values()) {
+    const places = placesOf(list[0].distance.unit as "time" | "laps", list);
+    list.forEach((e, i) => placeOf.set(e.id, placeLabel(places[i], isJointPlace(places, i)).toLowerCase()));
+  }
+
   for (const e of entries) {
     const list = e.recordType === "OVERALL" ? "Overall" : e.ageCategory;
     athlete(e.name!, e.gender).appearances.push(
-      `${GENDER_LABEL[e.gender] ?? e.gender} ${list} ${e.distance.name} #${e.rank} (${performanceText(e.distance.unit, e)})`,
+      `${GENDER_LABEL[e.gender] ?? e.gender} ${list} ${e.distance.name} ${placeOf.get(e.id)} (${performanceText(e.distance.unit, e)})`,
     );
   }
   for (const h of history) athlete(h.name, h.gender);

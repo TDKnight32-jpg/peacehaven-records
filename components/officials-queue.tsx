@@ -133,6 +133,7 @@ function SubmissionCard({
               <li key={p.label} className={clsx(p.entersList ? "font-semibold text-foreground" : "text-muted")}>
                 {p.entersList ? "★ " : "· "}
                 {p.text}
+                {p.dropsText && <span className="block pl-4 text-xs font-normal text-muted">{p.dropsText}</span>}
               </li>
             ))}
           </ul>
@@ -185,7 +186,7 @@ function SubmissionCard({
               {needsNameChoice
                 ? "First choose above whether this is a new athlete or someone already on the records."
                 : changesRecords
-                  ? `Publish this to the live records${asName ? ` as ${asName}` : ""} now? Anyone it displaces moves down a place.`
+                  ? `Publish this to the live records${asName ? ` as ${asName}` : ""} now? Anyone it passes moves down, and anyone who falls below 3rd drops off.`
                   : "This doesn't make any top 3, so approving won't change the live records. Approve anyway?"}
             </p>
             <div className="flex flex-wrap gap-3">
@@ -353,7 +354,11 @@ function DecisionPanel({ outcome: o, onDismiss }: { outcome: DecisionOutcome; on
               approved ? "text-secondary" : "text-gp-points-weak",
             )}
           >
-            {approved ? (o.newRecord ? "Approved · new club record" : "Approved") : "Declined"}
+            {approved
+              ? o.newRecord
+                ? `Approved · ${o.newRecord.joint ? "joint" : "new"} club record`
+                : "Approved"
+              : "Declined"}
           </p>
           <h3 className="mt-0.5 text-lg font-bold text-foreground">
             {o.athleteName}{" "}

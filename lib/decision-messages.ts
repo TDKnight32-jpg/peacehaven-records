@@ -1,4 +1,4 @@
-import type { ListChange } from "./record-approval";
+import { namesList, type ListChange } from "./record-approval";
 
 // Text for the records officer's confirmation panel after deciding a
 // submission (components/officials-queue.tsx). Nothing here is sent
@@ -9,10 +9,18 @@ function firstName(athleteName: string): string {
   return athleteName.trim().split(/\s+/)[0] || athleteName;
 }
 
-/** "Now #1 in Men's 10K", one per list it entered; or why nothing changed. */
+/** "#2", or "joint #2". */
+function placeText(c: ListChange): string {
+  return `${c.jointWith.length > 0 ? "joint " : ""}#${c.position}`;
+}
+
+/** "Now #1 in Men's 10K" (or "Now joint #1 in … with …"), one per list it
+ * entered; or why nothing changed. */
 export function describeChanges(changes: ListChange[]): string[] {
   if (changes.length === 0) return ["Outside the top 3, so the live records are unchanged."];
-  return changes.map((c) => `Now #${c.position} in ${c.list}`);
+  return changes.map(
+    (c) => `Now ${placeText(c)} in ${c.list}${c.jointWith.length > 0 ? ` with ${namesList(c.jointWith)}` : ""}`,
+  );
 }
 
 export function approvalMessage({
@@ -30,6 +38,15 @@ export function approvalMessage({
   newRecordList: string | null;
 }): string {
   const hi = `Hi ${firstName(athleteName)},`;
+  // An equalled record: the change for that list says who it's shared with.
+  const shared = newRecordList ? changes.find((c) => c.list === newRecordList && c.jointWith.length > 0) : undefined;
+  if (newRecordList && shared) {
+    return (
+      `${hi} your ${newRecordList} time of ${performance} has been approved. It equals the club record, ` +
+      `so you now share it with ${namesList(shared.jointWith)} on the Peacehaven Run Club records page. ` +
+      `Congratulations! I've attached your record card to share.`
+    );
+  }
   if (newRecordList) {
     return (
       `${hi} your ${newRecordList} time of ${performance} has been approved and is now on the ` +
@@ -42,7 +59,7 @@ export function approvalMessage({
   if (best) {
     return (
       `${hi} your ${best.list} time of ${performance} has been approved and is now on the ` +
-      `Peacehaven Run Club records page at #${best.position}. Congratulations!`
+      `Peacehaven Run Club records page at ${placeText(best)}. Congratulations!`
     );
   }
   return (

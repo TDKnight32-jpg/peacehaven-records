@@ -1,16 +1,17 @@
 import type { Prisma, RecordHistoryEntry } from "@prisma/client";
 import { prisma } from "./db";
-import { listLabelWithDistance, listsFor, performanceText, type ListKey } from "./record-approval";
-import { RECORD_LIST_SIZE, formatRecordTime, performanceScore } from "./record-ranking";
+import { listLabelWithDistance, listsFor, namesList, performanceText, type ListKey } from "./record-approval";
+import { RECORD_LIST_SIZE, formatRecordTime, performanceScore, placesOf } from "./record-ranking";
 import { normalizeWhitespace } from "./text";
 
 export interface TimeToBeat {
   unit: "time" | "laps";
-  /** Current #1, or null if the list is empty. */
-  record: { name: string; performance: string } | null;
-  /** The #3 performance a new entry has to beat (ties keep the existing
-   * holder ahead — see placeInList), or null while the list has fewer than
-   * 3 entries, so any performance gets on. */
+  /** Current #1 — every joint holder's name, e.g. "Sam Barden and Claire
+   * Wilder" — or null if the list is empty. */
+  record: { name: string; performance: string; joint: boolean } | null;
+  /** The last-placed performance on the list, which a new entry has to match
+   * (for a joint place — see placeInList) or beat; null while the list has
+   * fewer than 3 entries, so any performance gets on. */
   cutoff: string | null;
 }
 
@@ -30,11 +31,19 @@ export async function getTimeToBeat(
     where: { distanceId: distance.id, gender, recordType: "AGE_GROUP", ageCategory, name: { not: null } },
     orderBy: { rank: "asc" },
   });
-  const first = list[0];
-  const last = list.length >= RECORD_LIST_SIZE ? list[RECORD_LIST_SIZE - 1] : null;
+  const places = placesOf(unit, list);
+  const holders = list.filter((_, i) => places[i] === 1);
+  // A list holds everyone placed 3rd or better, so a tie for 3rd can make it longer than 3.
+  const last = list.length >= RECORD_LIST_SIZE ? list[list.length - 1] : null;
   return {
     unit,
-    record: first ? { name: first.name!, performance: performanceText(unit, first) } : null,
+    record: holders.length
+      ? {
+          name: namesList(holders.map((e) => e.name!)),
+          performance: performanceText(unit, holders[0]),
+          joint: holders.length > 1,
+        }
+      : null,
     cutoff: last ? performanceText(unit, last) : null,
   };
 }
@@ -60,6 +69,8 @@ export interface NewRecord {
   id: string;
   /** The list it took #1 in, e.g. "Men's 10K" or "Women's 40-49 Half Marathon". */
   listLabel: string;
+  /** It equalled the record there rather than beating it, so the record is shared. */
+  joint: boolean;
   athleteName: string;
   unit: "time" | "laps";
   /** "00:35:34", or "31 laps" for Back Yard Ultra. */
@@ -77,30 +88,40 @@ export interface NewRecord {
  * #1 appends that exact performance to the list's history (recordNewHolder
  * in lib/record-approval.ts), so a matching history row — same list, athlete
  * and performance — is the evidence. A submission that took both its age
- * group and the overall counts once, as the overall record.
+ * group and the overall counts once, as the overall record. It's joint when
+ * the history entry before it has the same performance: it equalled the
+ * record (see recordNewHolder).
  */
 function newRecordFrom(s: PublicSubmission, history: RecordHistoryEntry[]): NewRecord | null {
   const unit = s.distance.unit as "time" | "laps";
   const score = performanceScore(unit, s);
   const name = normalizeWhitespace(s.athleteName);
-  const took = (key: ListKey) =>
-    history.some(
-      (h) =>
-        h.distanceId === s.distanceId &&
-        h.gender === s.gender &&
-        h.recordType === key.recordType &&
-        h.ageCategory === key.ageCategory &&
-        normalizeWhitespace(h.name) === name &&
-        performanceScore(unit, h) === score,
+  // The list's history in order, and this submission's entry in it (if any).
+  const took = (key: ListKey) => {
+    const listHistory = history
+      .filter(
+        (h) =>
+          h.distanceId === s.distanceId &&
+          h.gender === s.gender &&
+          h.recordType === key.recordType &&
+          h.ageCategory === key.ageCategory,
+      )
+      .sort((a, b) => a.order - b.order);
+    const index = listHistory.findIndex(
+      (h) => normalizeWhitespace(h.name) === name && performanceScore(unit, h) === score,
     );
+    if (index === -1) return null;
+    return { key, joint: index > 0 && performanceScore(unit, listHistory[index - 1]) === score };
+  };
 
   const [ageGroup, overall] = listsFor(s);
-  const list = took(overall) ? overall : took(ageGroup) ? ageGroup : null;
-  if (!list) return null;
+  const found = took(overall) ?? took(ageGroup);
+  if (!found) return null;
 
   return {
     id: s.id,
-    listLabel: listLabelWithDistance(list, s.distance.name),
+    listLabel: listLabelWithDistance(found.key, s.distance.name),
+    joint: found.joint,
     athleteName: s.athleteName,
     unit,
     // As typed on the form ("35:34"); shown like the records page ("00:35:34").

@@ -92,7 +92,7 @@ export function renderRecordCard(
           <img src={logoSrc} width={px(200)} height={px(200)} alt="" />
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ fontSize: px(40), fontWeight: 700, letterSpacing: px(8), color: COLORS.gold }}>NEW CLUB RECORD</div>
+            <div style={{ fontSize: px(40), fontWeight: 700, letterSpacing: px(8), color: COLORS.gold }}>{record.joint ? "JOINT CLUB RECORD" : "NEW CLUB RECORD"}</div>
             <div style={{ marginTop: px(18), fontSize: px(44), color: COLORS.primary }}>{record.listLabel}</div>
           </div>
 

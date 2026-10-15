@@ -9,7 +9,7 @@ import { slugify } from "@/lib/slug";
  * a Share button over its bottom-right corner — used by the Latest records
  * strip and the officials' approval panel. */
 export function RecordCardThumb({ record, cardUrl }: { record: NewRecord; cardUrl: string }) {
-  const title = `New ${record.listLabel} record`;
+  const title = `${record.joint ? "Joint" : "New"} ${record.listLabel} record`;
   return (
     <div className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element -- already a sized PNG from our own route */}

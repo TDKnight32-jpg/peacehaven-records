@@ -1,6 +1,5 @@
+import { placeLabel } from "@/lib/record-ranking";
 import type { ClientRecord } from "@/lib/records";
-
-const RANK_LABEL: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd" };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -23,9 +22,10 @@ interface PodiumStyle {
  * side in 2nd–1st–3rd order, the edge moves to the top, and the taller
  * padding on 1st/2nd raises them above 3rd since the row aligns bottoms.
  * DOM order stays 1st–2nd–3rd so the stacked view and screen readers get
- * the natural ranking; only `order` rearranges the podium. */
-function podiumStyle(rank: number): PodiumStyle {
-  switch (rank) {
+ * the natural ranking; only `order` rearranges the podium. Tints follow the
+ * place, so joint 1sts are both gold. */
+function podiumStyle(place: number): PodiumStyle {
+  switch (place) {
     case 1:
       return {
         container:
@@ -63,11 +63,15 @@ export function RecordCard({
   unit: "time" | "laps";
   /** Maps footnote text to the id of its entry in the legend below the table. */
   footnoteAnchor?: (footnote: string) => string;
-  /** Lay out a top 3 as a side-by-side podium (used for the Overall cards). */
+  /** Show the top places with medal tints, side by side as a podium when the
+   * card is wide enough (used for the Overall cards). */
   podium?: boolean;
 }) {
   const filled = entries.filter((e) => e.name);
-  const isPodium = podium && filled.length > 1 && filled.every((e) => e.rank <= 3);
+  const isPodium = podium && filled.length > 1;
+  // A podium has one step per place, so with a tie the medal rows stay
+  // stacked at every width: no @container, so the @sm: podium styles never apply.
+  const sideBySide = isPodium && filled.length <= 3 && !filled.some((e) => e.joint);
 
   // In a podium column the event and date sit on separate lines, so the
   // "·" before the date is only shown while the podium is stacked.
@@ -98,14 +102,14 @@ export function RecordCard({
   );
 
   return (
-    <div className={`${isPodium ? "@container " : ""}rounded-xl border border-border bg-surface p-4 shadow-sm`}>
+    <div className={`${sideBySide ? "@container " : ""}rounded-xl border border-border bg-surface p-4 shadow-sm`}>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
       {filled.length === 0 ? (
         <p className="mt-3 text-sm text-muted">No record set</p>
       ) : isPodium ? (
         <ol className="mt-3 flex flex-col gap-2 @sm:grid @sm:grid-cols-3 @sm:items-end">
           {filled.map((e) => {
-            const style = podiumStyle(e.rank);
+            const style = podiumStyle(e.place);
             return (
               <li
                 key={e.id}
@@ -119,7 +123,7 @@ export function RecordCard({
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted @sm:flex-col @sm:items-center">
                   <span className={`font-semibold ${style.rank}`}>
-                    {RANK_LABEL[e.rank]}
+                    {placeLabel(e.place, e.joint)}
                     {e.event && <span className="@sm:hidden"> ·</span>}
                   </span>
                   {details(e)}
@@ -140,7 +144,7 @@ export function RecordCard({
               </div>
               <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted">
                 {filled.length > 1 && (
-                  <span className="font-semibold text-secondary">{RANK_LABEL[e.rank] ?? `${e.rank}th`}</span>
+                  <span className="font-semibold text-secondary">{placeLabel(e.place, e.joint)}</span>
                 )}
                 {e.event && (
                   <span>

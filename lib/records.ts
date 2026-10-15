@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { isJointPlace, placesOf } from "./record-ranking";
 
 export interface ClientRecord {
   id: string;
@@ -7,7 +8,12 @@ export interface ClientRecord {
   gender: "M" | "F";
   recordType: "AGE_GROUP" | "OVERALL";
   ageCategory: string | null;
+  /** Its slot in the list's stored order (1, 2, 3, and 4+ after a tie for 3rd). */
   rank: number;
+  /** The place it holds, shared with exactly equal results: 1, 1, 3. */
+  place: number;
+  /** Whether it shares its place with another entry. */
+  joint: boolean;
   name: string | null;
   time: string | null;
   laps: number | null;
@@ -51,6 +57,20 @@ export async function getRecordsData(): Promise<{
 
   const distanceById = new Map(distanceRows.map((d) => [d.id, d]));
 
+  // Places are worked out per list, from the filled entries in stored order.
+  const placeById = new Map<string, { place: number; joint: boolean }>();
+  const lists = new Map<string, typeof recordRows>();
+  for (const r of recordRows) {
+    if (!r.name) continue;
+    const key = [r.distanceId, r.gender, r.recordType, r.ageCategory].join("|");
+    lists.set(key, [...(lists.get(key) ?? []), r]);
+  }
+  for (const list of lists.values()) {
+    list.sort((a, b) => a.rank - b.rank);
+    const places = placesOf(distanceById.get(list[0].distanceId)!.unit as "time" | "laps", list);
+    list.forEach((r, i) => placeById.set(r.id, { place: places[i], joint: isJointPlace(places, i) }));
+  }
+
   const records: ClientRecord[] = recordRows.map((r) => {
     const distance = distanceById.get(r.distanceId)!;
     return {
@@ -61,6 +81,8 @@ export async function getRecordsData(): Promise<{
       recordType: r.recordType as "AGE_GROUP" | "OVERALL",
       ageCategory: r.ageCategory || null,
       rank: r.rank,
+      place: placeById.get(r.id)?.place ?? r.rank,
+      joint: placeById.get(r.id)?.joint ?? false,
       name: r.name,
       time: r.time,
       laps: r.laps,

@@ -53,6 +53,8 @@ export interface PlacementSummary {
   label: string;
   /** e.g. "Would rank #2 in Women's 40-49". */
   text: string;
+  /** Who approving would push off this list, e.g. "Pushes Jo Bloggs (00:21:03) off Women's Overall". */
+  dropsText: string | null;
   /** Whether approving would change this list. */
   entersList: boolean;
 }
@@ -70,25 +72,36 @@ export async function describePlacements(submission: SubmissionWithDistance): Pr
       const p = placement(submission, await currentList(prisma, submission, key));
       const isOverall = key.recordType === "OVERALL";
       let text: string;
+      let dropsText: string | null = null;
       if (p.kind === "enters") {
-        text =
-          p.position === 1
-            ? isOverall
-              ? `Would become the club's ${key.label} best`
-              : `Would become the ${key.label} record`
-            : `Would rank #${p.position} in ${key.label}`;
+        const joint = p.jointWith.length > 0 ? ` (joint with ${namesList(p.jointWith.map((e) => e.name!))})` : "";
+        if (p.position === 1 && joint) text = `Would equal the ${key.label} record${joint}`;
+        else if (p.position === 1)
+          text = isOverall ? `Would become the club's ${key.label} best` : `Would become the ${key.label} record`;
+        else text = `Would rank ${joint ? "joint " : ""}#${p.position} in ${key.label}${joint}`;
+        if (p.dropped.length > 0) {
+          const who = namesList(p.dropped.map((e) => `${e.name} (${performanceText(unit, e)})`));
+          dropsText = `Pushes ${who} off ${key.label}`;
+        }
       } else if (p.kind === "outside") {
-        text = `Outside the top ${RECORD_LIST_SIZE} in ${key.label} (#${RECORD_LIST_SIZE} is ${performanceText(unit, p.cutoff)})`;
+        text = `Outside the top ${RECORD_LIST_SIZE} in ${key.label} (needs ${performanceText(unit, p.cutoff)} or better)`;
       } else {
         text = `Already #${p.existingRank} in ${key.label} with ${performanceText(unit, p.existing)} — no change`;
       }
-      return { label: key.label, text, entersList: p.kind === "enters" };
+      return { label: key.label, text, dropsText, entersList: p.kind === "enters" };
     }),
   );
 }
 
+/** "A", "A and B", "A, B and C". */
+export function namesList(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 export interface ListChange {
+  /** Its place in the list — shared with `jointWith` if tied. */
   position: number;
+  jointWith: string[];
   /** e.g. "Men's 10K" (overall) or "Women's 40-49 5K" — as on the share card. */
   list: string;
 }
@@ -103,9 +116,10 @@ export function listLabelWithDistance(key: ListKey, distanceName: string): strin
 /**
  * Publishes an approved submission into the live records, inside the
  * approval transaction (see decideSubmission): re-ranks its age-group and
- * overall lists — shifting existing holders down, dropping whoever falls off
- * the top 3, and replacing the athlete's own older entry — and, for each list
- * where it takes #1, appends to that list's history (see recordNewHolder).
+ * overall lists — shifting existing holders down, dropping whoever falls
+ * below 3rd, and replacing the athlete's own older entry — and, for each list
+ * where it takes or equals #1, appends to that list's history (see
+ * recordNewHolder).
  * Footnotes stay with the performance they annotate. Returns each list it
  * entered and at what position — empty if it made no top 3.
  */
@@ -129,6 +143,17 @@ export async function publishApprovedSubmission(
     const p = placement(submission, current);
     if (p.kind !== "enters") continue;
 
+    // The list can shrink (someone's own older entry replaced, or a tie for
+    // 3rd pushed off together), so clear the slots below the new last place.
+    await tx.recordEntry.deleteMany({
+      where: {
+        distanceId: submission.distanceId,
+        gender: submission.gender,
+        recordType: key.recordType,
+        ageCategory: key.ageCategory,
+        rank: { gt: p.list.length },
+      },
+    });
     for (const [i, entry] of p.list.entries()) {
       const data =
         entry === "NEW"
@@ -154,7 +179,11 @@ export async function publishApprovedSubmission(
         create: { ...slot, ...data },
       });
     }
-    changes.push({ position: p.position, list: listLabelWithDistance(key, submission.distance.name) });
+    changes.push({
+      position: p.position,
+      jointWith: p.jointWith.map((e) => e.name!),
+      list: listLabelWithDistance(key, submission.distance.name),
+    });
 
     if (p.position === 1) await recordNewHolder(tx, submission, key, current[0], newEntry);
   }
@@ -175,11 +204,13 @@ function samePerformance(unit: "time" | "laps", a: HistoryPerformance, b: Histor
 
 /**
  * Appends a new #1 to its list's history (overall or one age group, at any
- * distance). The holder it displaces is saved first unless they're already
- * the latest history entry (same name and performance) — so a former record
- * is never lost, including when someone beats their own record, and a list
- * with no history yet starts one with both holders. Only #1 is a record:
- * entering at #2 or #3 never reaches here.
+ * distance) — including one that equals the record, which joins it rather
+ * than replacing it (the history shows it as "Equalled"). The holder it
+ * displaces or joins is saved first unless they're already in the history
+ * with that performance — so a former record is never
+ * lost, including when someone beats their own record, and a list with no
+ * history yet starts one with both holders. Only #1 is a record: entering
+ * at #2 or #3 never reaches here.
  */
 async function recordNewHolder(
   tx: Prisma.TransactionClient,
@@ -195,11 +226,13 @@ async function recordNewHolder(
     recordType: key.recordType,
     ageCategory: key.ageCategory,
   };
-  const latest = await tx.recordHistoryEntry.findFirst({ where: list, orderBy: { order: "desc" } });
-  let order = latest?.order ?? 0;
+  const history = await tx.recordHistoryEntry.findMany({ where: list, orderBy: { order: "asc" } });
+  let order = history[history.length - 1]?.order ?? 0;
 
+  // Checked against the whole history, not just the latest entry: with joint
+  // holders, the one listed first on the records isn't the latest entry.
   const holders: HistoryHolder[] = [];
-  if (displaced?.name && !(latest && samePerformance(unit, latest, displaced))) holders.push(displaced);
+  if (displaced?.name && !history.some((h) => samePerformance(unit, h, displaced))) holders.push(displaced);
   holders.push(newHolder);
 
   for (const h of holders) {
