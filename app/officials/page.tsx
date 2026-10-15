@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { OfficialsQueue, type QueueSubmission } from "@/components/officials-queue";
+import { findSimilarAthletes, getKnownAthletes } from "@/lib/athlete-names";
 import { prisma } from "@/lib/db";
 import { isOfficial } from "@/lib/officials-auth";
 import { describePlacements } from "@/lib/record-approval";
@@ -36,6 +37,8 @@ export default async function OfficialsQueuePage() {
     include: { distance: true },
   });
 
+  const known = pending.length > 0 ? await getKnownAthletes() : [];
+
   const submissions: QueueSubmission[] = await Promise.all(
     pending.map(async (s) => ({
       id: s.id,
@@ -51,6 +54,16 @@ export default async function OfficialsQueuePage() {
       hasPhoto: s.photoUrl != null,
       submittedAt: submittedFormat.format(s.submittedAt),
       placements: await describePlacements(s),
+      // Where it would land under each existing athlete's name instead, for
+      // the "Same person as…" choice.
+      similarAthletes: await Promise.all(
+        findSimilarAthletes(s.athleteName, s.gender, known).map(async (a) => ({
+          name: a.name,
+          reason: a.reason,
+          appearances: a.appearances,
+          placements: await describePlacements({ ...s, athleteName: a.name }),
+        })),
+      ),
     })),
   );
 

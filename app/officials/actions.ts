@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { isOfficial, isOfficialsAreaConfigured, logInOfficial, logOutOfficial } from "@/lib/officials-auth";
 import type { Distance, RecordSubmission } from "@prisma/client";
+import { findSimilarAthletes, getKnownAthletes } from "@/lib/athlete-names";
 import { approvalMessage, declineMessage, describeChanges } from "@/lib/decision-messages";
 import { publishApprovedSubmission } from "@/lib/record-approval";
 import { getNewRecord, type NewRecord } from "@/lib/record-highlights";
@@ -63,11 +65,29 @@ function performanceOf(s: RecordSubmission & { distance: Distance }): string {
 const ALREADY_DECIDED = "This submission has already been approved or declined — refresh to see the current queue.";
 const MAX_REASON = 500;
 
-export async function approveSubmission(id: string): Promise<DecisionResult> {
+/** Approves a submission. `asName` is an existing athlete's name the
+ * officer picked as "Same person as…": the submission is renamed to it before
+ * publishing, so the record lists (which match by name) treat it as that
+ * athlete — replacing their slower entry rather than adding a second one. */
+export async function approveSubmission(id: string, asName: string | null = null): Promise<DecisionResult> {
   if (!(await isOfficial())) return { ok: false, error: "Your session has expired — please log in again." };
 
+  // Only a name the review screen actually offered for this submission.
+  if (asName !== null) {
+    const submission = await prisma.recordSubmission.findUnique({ where: { id } });
+    if (!submission) return { ok: false, error: ALREADY_DECIDED };
+    const offered = findSimilarAthletes(submission.athleteName, submission.gender, await getKnownAthletes());
+    if (!offered.some((a) => a.name === asName)) {
+      return { ok: false, error: "That athlete is no longer on the records — refresh and choose again." };
+    }
+  }
+
   const outcome = await decideSubmission(id, "APPROVED", {
-    onDecide: async (tx, submission) => ({ submission, changes: await publishApprovedSubmission(tx, submission) }),
+    onDecide: async (tx, decided) => {
+      const submission = asName !== null ? { ...decided, athleteName: asName } : decided;
+      if (asName !== null) await tx.recordSubmission.update({ where: { id }, data: { athleteName: asName } });
+      return { submission, changes: await publishApprovedSubmission(tx, submission) };
+    },
   });
   if (!outcome?.result) return { ok: false, error: ALREADY_DECIDED };
 

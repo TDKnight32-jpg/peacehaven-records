@@ -129,7 +129,14 @@ function TimeToBeatNote({ distanceSlug, gender, ageCategory }: { distanceSlug: s
 
 const INITIAL: SubmitState = { status: "idle" };
 
-export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOption[] }) {
+export function SubmitRecordForm({
+  distances,
+  athleteNames,
+}: {
+  distances: SubmitDistanceOption[];
+  /** Names already on the records, by gender, suggested as the athlete's name is typed. */
+  athleteNames: Record<"F" | "M", string[]>;
+}) {
   const [state, formAction, pending] = useActionState(submitRecord, INITIAL);
   const [distanceSlug, setDistanceSlug] = useState("");
   const [gender, setGender] = useState<"F" | "M">("F");
@@ -308,8 +315,25 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
       <fieldset className="flex flex-col gap-5 border-t border-border pt-6">
         <legend className={legendClass}>The race</legend>
 
-        <Field id="athleteName" label="Athlete name" error={errors.athleteName}>
-          <input id="athleteName" name="athleteName" autoComplete="name" className={inputClass} {...aria("athleteName", "athleteName")} />
+        <Field
+          id="athleteName"
+          label="Athlete name"
+          hint="Already on the records? Pick your name from the suggestions so it matches."
+          error={errors.athleteName}
+        >
+          <input
+            id="athleteName"
+            name="athleteName"
+            list="athlete-names"
+            autoComplete="off"
+            className={inputClass}
+            {...aria("athleteName", "athleteName")}
+          />
+          <datalist id="athlete-names">
+            {athleteNames[gender].map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
         </Field>
 
         <div className="grid gap-5 sm:grid-cols-[2fr_1fr]">

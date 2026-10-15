@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SubmitRecordForm } from "@/components/submit-record-form";
+import { getKnownAthletes } from "@/lib/athlete-names";
 import { getSubmitDistanceOptions } from "@/lib/submissions";
 
 export const metadata: Metadata = {
@@ -14,7 +15,13 @@ export const metadata: Metadata = {
 export const revalidate = 0;
 
 export default async function SubmitPage() {
-  const distances = await getSubmitDistanceOptions();
+  const [distances, athletes] = await Promise.all([getSubmitDistanceOptions(), getKnownAthletes()]);
+  // Already public on the records page — offered as suggestions so the same
+  // person is entered under the same name each time.
+  const athleteNames = {
+    F: athletes.filter((a) => a.gender === "F").map((a) => a.name),
+    M: athletes.filter((a) => a.gender === "M").map((a) => a.name),
+  };
 
   return (
     <>
@@ -29,7 +36,7 @@ export default async function SubmitPage() {
             Think you have run a club record? Send the details below. The records officer will check
             the official results before anything appears on the records page.
           </p>
-          <SubmitRecordForm distances={distances} />
+          <SubmitRecordForm distances={distances} athleteNames={athleteNames} />
         </div>
       </main>
     </>

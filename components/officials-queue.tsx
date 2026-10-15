@@ -27,6 +27,17 @@ export interface QueueSubmission {
   /** Pre-formatted on the server — see app/officials/page.tsx. */
   submittedAt: string;
   placements: PlacementSummary[];
+  /** Athletes already on the records whose name looks like this one. */
+  similarAthletes: SimilarAthleteChoice[];
+}
+
+export interface SimilarAthleteChoice {
+  name: string;
+  reason: string;
+  /** Where they're on the live lists now. */
+  appearances: string[];
+  /** Where this submission would land if approved under their name. */
+  placements: PlacementSummary[];
 }
 
 export function OfficialsQueue({ submissions }: { submissions: QueueSubmission[] }) {
@@ -66,7 +77,12 @@ function SubmissionCard({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const changesRecords = s.placements.some((p) => p.entersList);
+  // For a name like one already on the records: undefined until the officer
+  // chooses, null for "new athlete", or the existing athlete's name.
+  const [asName, setAsName] = useState<string | null | undefined>(undefined);
+  const needsNameChoice = s.similarAthletes.length > 0 && asName === undefined;
+  const placements = (asName && s.similarAthletes.find((a) => a.name === asName)?.placements) || s.placements;
+  const changesRecords = placements.some((p) => p.entersList);
 
   function run(action: () => Promise<DecisionResult>) {
     setError(null);
@@ -85,6 +101,10 @@ function SubmissionCard({
         </h3>
         <p className="text-xs text-muted">Submitted {s.submittedAt}</p>
       </header>
+
+      {s.similarAthletes.length > 0 && (
+        <SimilarNamesWarning submission={s} value={asName} onChange={setAsName} disabled={pending} />
+      )}
 
       <div className="grid gap-5 px-5 pb-5 pt-4 sm:grid-cols-[1fr_1fr]">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
@@ -105,9 +125,11 @@ function SubmissionCard({
         </dl>
 
         <div className="rounded-lg bg-gp-row-gold px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gp-gold">If approved</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gp-gold">
+            If approved{asName ? ` as ${asName}` : ""}
+          </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-            {s.placements.map((p) => (
+            {placements.map((p) => (
               <li key={p.label} className={clsx(p.entersList ? "font-semibold text-foreground" : "text-muted")}>
                 {p.entersList ? "★ " : "· "}
                 {p.text}
@@ -160,15 +182,17 @@ function SubmissionCard({
         {mode === "approve" && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-foreground">
-              {changesRecords
-                ? "Publish this to the live records now? Anyone it displaces moves down a place."
-                : "This doesn't make any top 3, so approving won't change the live records. Approve anyway?"}
+              {needsNameChoice
+                ? "First choose above whether this is a new athlete or someone already on the records."
+                : changesRecords
+                  ? `Publish this to the live records${asName ? ` as ${asName}` : ""} now? Anyone it displaces moves down a place.`
+                  : "This doesn't make any top 3, so approving won't change the live records. Approve anyway?"}
             </p>
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                disabled={pending}
-                onClick={() => run(() => approveSubmission(s.id))}
+                disabled={pending || needsNameChoice}
+                onClick={() => run(() => approveSubmission(s.id, asName ?? null))}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-secondary disabled:opacity-60"
               >
                 {pending ? "Approving…" : "Confirm approval"}
@@ -213,6 +237,85 @@ function SubmissionCard({
         )}
       </footer>
     </article>
+  );
+}
+
+/** Shown when the submitted name looks like someone already on the records
+ * (e.g. "Samantha Barden" when "Sam Barden" is on the lists). The lists match
+ * athletes by exact name, so without a choice here the same person would be
+ * counted twice. */
+function SimilarNamesWarning({
+  submission: s,
+  value,
+  onChange,
+  disabled,
+}: {
+  submission: QueueSubmission;
+  value: string | null | undefined;
+  onChange: (value: string | null) => void;
+  disabled: boolean;
+}) {
+  const radio = "mt-0.5 h-4 w-4 shrink-0 accent-primary";
+  const option = "flex cursor-pointer items-start gap-2.5 rounded-lg border bg-surface px-3 py-2 text-sm";
+  const optionBorder = (selected: boolean) => (selected ? "border-primary" : "border-border");
+  return (
+    <fieldset
+      disabled={disabled}
+      className="mx-5 mt-4 rounded-lg border-l-4 border-gp-bronze bg-gp-row-bronze px-4 py-3"
+    >
+      <legend className="float-left w-full text-sm font-bold text-gp-bronze">
+        ⚠ Check the name — {s.similarAthletes.length === 1 ? "a similar name is" : "similar names are"} already on
+        the records
+      </legend>
+      <p className="mt-1 text-xs text-foreground">
+        The records match athletes by exact name, so if &ldquo;{s.athleteName}&rdquo; is the same person they&rsquo;d
+        be listed twice. Choose before approving.
+      </p>
+
+      <div className="mt-3 flex flex-col gap-2">
+        {s.similarAthletes.map((a) => (
+          <label key={a.name} className={clsx(option, optionBorder(value === a.name))}>
+            <input
+              type="radio"
+              name={`as-${s.id}`}
+              className={radio}
+              checked={value === a.name}
+              onChange={() => onChange(a.name)}
+            />
+            <span className="min-w-0">
+              <span className="font-semibold text-foreground">Same person as {a.name}</span>{" "}
+              <span className="text-xs text-muted">· {a.reason.toLowerCase()}</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                {a.appearances.length > 0 ? (
+                  <>
+                    {a.appearances.slice(0, 3).join(" · ")}
+                    {a.appearances.length > 3 && ` · and ${a.appearances.length - 3} more`}
+                  </>
+                ) : (
+                  "In the record history only"
+                )}
+              </span>
+              <span className="mt-0.5 block text-xs text-foreground">
+                The record will use the name {a.name}, replacing any slower entry of theirs.
+              </span>
+            </span>
+          </label>
+        ))}
+        <label className={clsx(option, optionBorder(value === null))}>
+          <input
+            type="radio"
+            name={`as-${s.id}`}
+            className={radio}
+            checked={value === null}
+            onChange={() => onChange(null)}
+          />
+          <span>
+            <span className="font-semibold text-foreground">A different athlete</span>{" "}
+            <span className="text-xs text-muted">· keep the name &ldquo;{s.athleteName}&rdquo;</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
   );
 }
 
