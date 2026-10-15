@@ -1,4 +1,5 @@
 import { placeLabel } from "@/lib/record-ranking";
+import { RunnerLink } from "./runner-link";
 import type { ClientRecord } from "@/lib/records";
 
 function formatDate(iso: string): string {
@@ -116,7 +117,7 @@ export function RecordCard({
                 className={`flex flex-col gap-0.5 rounded-lg border-l-[4px] px-3 py-2.5 @sm:items-center @sm:border-l-0 @sm:border-t-[4px] @sm:px-2 @sm:pb-3 @sm:text-center ${style.container}`}
               >
                 <div className="flex items-baseline justify-between gap-2 @sm:flex-col @sm:items-center @sm:gap-0.5">
-                  <span className={`font-medium text-foreground @sm:break-words ${style.name}`}>{e.name}</span>
+                  <RunnerLink name={e.name!} className={`font-medium text-foreground @sm:break-words ${style.name}`} />
                   <span className={`font-mono font-semibold text-primary ${style.time}`}>
                     {unit === "laps" ? `${e.laps} lap${e.laps === 1 ? "" : "s"}` : e.time}
                   </span>
@@ -137,7 +138,7 @@ export function RecordCard({
           {filled.map((e) => (
             <li key={e.id} className="flex flex-col gap-0.5">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-medium text-foreground">{e.name}</span>
+                <RunnerLink name={e.name!} className="font-medium text-foreground" />
                 <span className="font-mono text-sm font-semibold text-primary">
                   {unit === "laps" ? `${e.laps} lap${e.laps === 1 ? "" : "s"}` : e.time}
                 </span>

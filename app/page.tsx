@@ -6,6 +6,8 @@ import { getLatestRecords } from "@/lib/record-highlights";
 import { SiteHeader } from "@/components/site-header";
 import { RecordsExplorer } from "@/components/records-explorer";
 import { LatestRecords } from "@/components/latest-records";
+import { RunnerSearch } from "@/components/runner-search";
+import { getRunnerIndex } from "@/lib/runner-profiles";
 
 // Records change when an official approves a submission (and the pending
 // count with every submission), not on redeploy — so this page must fetch
@@ -13,11 +15,12 @@ import { LatestRecords } from "@/components/latest-records";
 export const revalidate = 0;
 
 export default async function Home() {
-  const [{ distances, records, history }, pendingCount, latestRecords] = await Promise.all([
+  const [{ distances, records, history }, pendingCount, latestRecords, runners] = await Promise.all([
     getRecordsData(),
     // Public page: only the number is rendered, never any submission details.
     prisma.recordSubmission.count({ where: { status: "PENDING" } }),
     getLatestRecords(),
+    getRunnerIndex(),
   ]);
 
   return (
@@ -56,6 +59,9 @@ export default async function Home() {
             <LatestRecords records={latestRecords} />
           </div>
         )}
+        <div className="mx-auto w-full max-w-5xl px-4 pt-6 sm:px-6">
+          <RunnerSearch runners={runners} />
+        </div>
         <Suspense fallback={null}>
           <RecordsExplorer distances={distances} records={records} history={history} />
         </Suspense>

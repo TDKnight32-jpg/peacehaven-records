@@ -1,5 +1,6 @@
 import { categoryRank } from "@/lib/distances";
 import type { ClientHistoryEntry } from "@/lib/records";
+import { RunnerLink } from "./runner-link";
 
 const GENDER_LABEL: Record<"F" | "M", string> = { F: "Women's", M: "Men's" };
 
@@ -41,7 +42,7 @@ function Timeline({ entries }: { entries: ClientHistoryEntry[] }) {
               aria-hidden
             />
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-medium text-foreground">{e.name}</span>
+              <RunnerLink name={e.name} className="font-medium text-foreground" />
               <span className="font-mono text-sm font-semibold text-primary">{performance(e)}</span>
             </div>
             <div className="flex flex-wrap items-baseline gap-x-1 text-xs text-muted">

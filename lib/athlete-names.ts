@@ -68,7 +68,7 @@ export async function getKnownAthletes(): Promise<KnownAthlete[]> {
 function nameParts(raw: string): { first: string; surname: string; all: string } {
   const words = raw
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z\s-]/g, "")
     .split(/[\s-]+/)

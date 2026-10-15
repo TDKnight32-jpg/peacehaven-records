@@ -194,3 +194,27 @@ export async function getNewRecord(id: string): Promise<NewRecord | null> {
   });
   return newRecordFrom(s, history);
 }
+
+/** Every share card belonging to an athlete — their approved submissions
+ * that made a top 3 — for the links on their runner profile. Names are
+ * matched the way the record lists match them (case and spacing ignored);
+ * only the public fields above are read. */
+export async function getCardsForAthlete(names: string[]): Promise<NewRecord[]> {
+  const wanted = new Set(names.map(normalizeWhitespace));
+  const approved = (
+    await prisma.recordSubmission.findMany({
+      where: {
+        status: "APPROVED",
+        decidedAt: { not: null },
+        OR: names.map((n) => ({ athleteName: { equals: n.trim(), mode: "insensitive" as const } })),
+      },
+      select: PUBLIC_SUBMISSION_FIELDS,
+    })
+  ).filter((s) => wanted.has(normalizeWhitespace(s.athleteName)));
+  if (approved.length === 0) return [];
+
+  const history = await prisma.recordHistoryEntry.findMany({
+    where: { distanceId: { in: [...new Set(approved.map((s) => s.distanceId))] } },
+  });
+  return approved.flatMap((s) => newRecordFrom(s, history) ?? []);
+}
