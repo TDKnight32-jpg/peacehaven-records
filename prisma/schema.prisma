@@ -67,6 +67,16 @@ model RecordSubmission {
   // The records officer's note when declining, for their own reference when
   // contacting the submitter. Null for pending and approved submissions.
   declineReason String?
+  // Where it placed when approved: 1-3 in the overall list and in its
+  // age-group list, or null where it didn't make that list's top 3 (and for
+  // pending and declined submissions). Set by publishApprovedSubmission in
+  // lib/record-approval.ts; drives the share cards and Latest results strip.
+  overallRank   Int?
+  ageGroupRank  Int?
+  // Whether that place was shared with an exactly equal result when
+  // approved ("Joint 2nd"); false where it wasn't, or didn't place.
+  overallJoint  Boolean   @default(false)
+  ageGroupJoint Boolean   @default(false)
 
   @@index([status, submittedAt])
 }

@@ -47,7 +47,8 @@ export type DecisionOutcome = {
       decision: "APPROVED";
       /** In plain words, e.g. "Now #1 in Men's 10K". */
       changes: string[];
-      /** Set if it became a #1 — the same check as the Latest records strip and card route. */
+      /** Its share card if it set a record or took a top-3 place — the same as
+       * the Latest records & top 3s strip and the card route. */
       newRecord: NewRecord | null;
     }
   | { decision: "DECLINED"; reason: string }
@@ -94,7 +95,7 @@ export async function approveSubmission(id: string, asName: string | null = null
   revalidatePath("/officials");
   revalidatePath("/");
   const { submission, changes } = outcome.result;
-  // Read after the approval has committed, so it sees the new history entry.
+  // Read after the approval has committed, so it sees the saved place.
   const newRecord = await getNewRecord(id);
   const performance = performanceOf(submission);
   return {
@@ -113,7 +114,8 @@ export async function approveSubmission(id: string, asName: string | null = null
         distanceName: submission.distance.name,
         performance,
         changes,
-        newRecordList: newRecord?.listLabel ?? null,
+        newRecordList: newRecord?.place === 1 ? newRecord.listLabel : null,
+        hasCard: newRecord !== null,
       }),
     },
   };

@@ -4,7 +4,8 @@ import { ImageResponse } from "next/og";
 import { RECORD_CARD_SIZE } from "./record-card-size";
 import type { NewRecord } from "./record-highlights";
 
-// A 1080x1080 PNG for sharing a new club record on WhatsApp, Instagram etc.
+// A 1080x1080 PNG for sharing a new club record or top-3 place on WhatsApp,
+// Instagram etc.
 // The rounded card sits on a solid dark green square rather than relying on
 // transparent corners, which some apps flatten to black or white.
 
@@ -15,9 +16,19 @@ const COLORS = {
   primary: "#2f563e",
   foreground: "#1c231e",
   muted: "#5c6b60",
-  gold: "#a67c14",
-  goldEdge: "#c99a1e",
 };
+
+// The medal colours the records pages use for 1st/2nd/3rd (gp-gold,
+// gp-silver, gp-bronze and their -edge variants in app/globals.css). Gold
+// keeps the original "NEW CLUB RECORD" design ("JOINT CLUB RECORD" when it
+// equalled the record); 2nd and 3rd also get a medal badge with the place,
+// so it's clear at a glance it isn't the record — "JOINT" over the place
+// when it's shared.
+const PLACES = {
+  1: { headline: "NEW CLUB RECORD", accent: "#a67c14", edge: "#c99a1e", badge: null },
+  2: { headline: "NEW CLUB TOP 3", accent: "#8a8d92", edge: "#a8acb2", badge: "2nd" },
+  3: { headline: "NEW CLUB TOP 3", accent: "#a25a2a", edge: "#c17a45", badge: "3rd" },
+} as const;
 
 // Geist and Geist Mono are the site's fonts (app/layout.tsx); times on the
 // records pages are set in Geist Mono. Satori needs TTFs, so they're
@@ -51,6 +62,7 @@ export function renderRecordCard(
 ): ImageResponse {
   // Every measurement below is in full-size (1080px) pixels.
   const px = (n: number) => (n * size) / RECORD_CARD_SIZE;
+  const place = PLACES[record.place];
   const laps = record.unit === "laps" ? record.performance.replace(/\s*laps$/, "") : null;
 
   return new ImageResponse(
@@ -76,7 +88,7 @@ export function renderRecordCard(
       >
         {/* The gold top edge the site's cards have; a clipped stripe rather
               than border-top, which Satori mitres at the rounded corners. */}
-        <div style={{ height: px(16), backgroundColor: COLORS.goldEdge }} />
+        <div style={{ height: px(16), backgroundColor: place.edge }} />
         <div
           style={{
             flex: 1,
@@ -86,13 +98,42 @@ export function renderRecordCard(
             justifyContent: "space-between",
             padding: `${px(48)}px ${px(64)}px ${px(72)}px`,
             textAlign: "center",
+            position: "relative",
           }}
         >
+          {place.badge && (
+            <div
+              style={{
+                position: "absolute",
+                top: px(44),
+                right: px(44),
+                width: px(150),
+                height: px(150),
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: px(75),
+                border: `${px(8)}px solid ${place.edge}`,
+                backgroundColor: place.accent,
+                color: COLORS.card,
+                fontSize: px(56),
+                fontWeight: 700,
+              }}
+            >
+              {record.joint && (
+                <div style={{ fontSize: px(24), letterSpacing: px(3), lineHeight: 1, marginBottom: px(4) }}>JOINT</div>
+              )}
+              <div style={{ lineHeight: 1, fontSize: px(record.joint ? 50 : 56) }}>{place.badge}</div>
+            </div>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> only */}
           <img src={logoSrc} width={px(200)} height={px(200)} alt="" />
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ fontSize: px(40), fontWeight: 700, letterSpacing: px(8), color: COLORS.gold }}>{record.joint ? "JOINT CLUB RECORD" : "NEW CLUB RECORD"}</div>
+            <div style={{ fontSize: px(40), fontWeight: 700, letterSpacing: px(8), color: place.accent }}>
+              {record.place === 1 && record.joint ? "JOINT CLUB RECORD" : place.headline}
+            </div>
             <div style={{ marginTop: px(18), fontSize: px(44), color: COLORS.primary }}>{record.listLabel}</div>
           </div>
 

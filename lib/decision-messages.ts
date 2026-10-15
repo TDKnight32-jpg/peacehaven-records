@@ -29,6 +29,7 @@ export function approvalMessage({
   performance,
   changes,
   newRecordList,
+  hasCard = false,
 }: {
   athleteName: string;
   distanceName: string;
@@ -36,6 +37,8 @@ export function approvalMessage({
   changes: ListChange[];
   /** The list it set a new #1 in, if it did (see getNewRecord). */
   newRecordList: string | null;
+  /** Whether it has a share card (any top-3 place) for the officer to attach. */
+  hasCard?: boolean;
 }): string {
   const hi = `Hi ${firstName(athleteName)},`;
   // An equalled record: the change for that list says who it's shared with.
@@ -59,7 +62,8 @@ export function approvalMessage({
   if (best) {
     return (
       `${hi} your ${best.list} time of ${performance} has been approved and is now on the ` +
-      `Peacehaven Run Club records page at ${placeText(best)}. Congratulations!`
+      `Peacehaven Run Club records page at ${placeText(best)}. Congratulations!` +
+      (hasCard ? ` I've attached a card to share.` : "")
     );
   }
   return (

@@ -60,6 +60,10 @@ const PUBLIC_SUBMISSION_FIELDS = {
   laps: true,
   date: true,
   decidedAt: true,
+  overallRank: true,
+  overallJoint: true,
+  ageGroupRank: true,
+  ageGroupJoint: true,
   distance: { select: { name: true, unit: true } },
 } as const;
 
@@ -67,9 +71,12 @@ type PublicSubmission = Prisma.RecordSubmissionGetPayload<{ select: typeof PUBLI
 
 export interface NewRecord {
   id: string;
-  /** The list it took #1 in, e.g. "Men's 10K" or "Women's 40-49 Half Marathon". */
+  /** The list its card is for, e.g. "Men's 10K" or "Women's 40-49 Half Marathon". */
   listLabel: string;
-  /** It equalled the record there rather than beating it, so the record is shared. */
+  /** Its place in that list when approved. */
+  place: 1 | 2 | 3;
+  /** That place was shared with an exactly equal result ("Joint 2nd"); for
+   * 1st, it equalled the record rather than beating it. */
   joint: boolean;
   athleteName: string;
   unit: "time" | "laps";
@@ -82,20 +89,46 @@ export interface NewRecord {
 }
 
 /**
- * The record an approved submission set, or null if it didn't take a #1.
+ * The share card an approved submission gets — a new record or a top-3
+ * place — or null if it made no top 3.
  *
- * Submissions don't store where they placed, but every approval that takes a
- * #1 appends that exact performance to the list's history (recordNewHolder
- * in lib/record-approval.ts), so a matching history row — same list, athlete
- * and performance — is the evidence. A submission that took both its age
- * group and the overall counts once, as the overall record. It's joint when
- * the history entry before it has the same performance: it equalled the
- * record (see recordNewHolder).
+ * Approvals save where they placed (overallRank / ageGroupRank, set by
+ * publishApprovedSubmission). The card is for its best place, and the
+ * overall list when both places are equal: overall 1st beats age-group 1st,
+ * but an age-group record beats overall 3rd.
+ *
+ * Submissions approved before places were saved have neither, so for those
+ * only a #1 is found: every approval that takes a #1 appends that exact
+ * performance to the list's history (recordNewHolder in
+ * lib/record-approval.ts), so a matching history row — same list, athlete
+ * and performance — is the evidence. It's joint when the history entry
+ * before it has the same performance: it equalled the record.
  */
 function newRecordFrom(s: PublicSubmission, history: RecordHistoryEntry[]): NewRecord | null {
   const unit = s.distance.unit as "time" | "laps";
   const score = performanceScore(unit, s);
   const name = normalizeWhitespace(s.athleteName);
+  const [ageGroup, overall] = listsFor(s);
+  const card = (key: ListKey, place: number, joint: boolean): NewRecord => ({
+    id: s.id,
+    listLabel: listLabelWithDistance(key, s.distance.name),
+    place: place as 1 | 2 | 3,
+    joint,
+    athleteName: s.athleteName,
+    unit,
+    // As typed on the form ("35:34"); shown like the records page ("00:35:34").
+    performance: unit === "laps" ? performanceText(unit, s) : formatRecordTime(score),
+    raceDate: s.date.toISOString(),
+    decidedAt: s.decidedAt!.toISOString(),
+  });
+
+  if (s.overallRank != null || s.ageGroupRank != null) {
+    if (s.overallRank != null && (s.ageGroupRank == null || s.overallRank <= s.ageGroupRank)) {
+      return card(overall, s.overallRank, s.overallJoint);
+    }
+    return card(ageGroup, s.ageGroupRank!, s.ageGroupJoint);
+  }
+
   // The list's history in order, and this submission's entry in it (if any).
   const took = (key: ListKey) => {
     const listHistory = history
@@ -114,29 +147,18 @@ function newRecordFrom(s: PublicSubmission, history: RecordHistoryEntry[]): NewR
     return { key, joint: index > 0 && performanceScore(unit, listHistory[index - 1]) === score };
   };
 
-  const [ageGroup, overall] = listsFor(s);
   const found = took(overall) ?? took(ageGroup);
-  if (!found) return null;
-
-  return {
-    id: s.id,
-    listLabel: listLabelWithDistance(found.key, s.distance.name),
-    joint: found.joint,
-    athleteName: s.athleteName,
-    unit,
-    // As typed on the form ("35:34"); shown like the records page ("00:35:34").
-    performance: unit === "laps" ? performanceText(unit, s) : formatRecordTime(score),
-    raceDate: s.date.toISOString(),
-    decidedAt: s.decidedAt!.toISOString(),
-  };
+  return found ? card(found.key, 1, found.joint) : null;
 }
 
-// How many recent approvals to look through for #1s. Most approvals are #2s
-// and #3s, so this needs to be comfortably more than the 3 the strip shows.
+// How many recent approvals to look through for ones with a card. Some
+// approvals make no top 3, so this needs to be comfortably more than the 3
+// the strip shows.
 const LATEST_RECORDS_SCAN = 50;
 
-/** The most recent approved submissions that took a #1 — overall or age
- * group — newest decision first, for the strip on the records page. */
+/** The most recent approved submissions that set a record or took a top-3
+ * place — overall or age group — newest decision first, for the "Latest
+ * records & top 3s" strip on the records page. */
 export async function getLatestRecords(limit = 3): Promise<NewRecord[]> {
   const approved = await prisma.recordSubmission.findMany({
     where: { status: "APPROVED", decidedAt: { not: null } },
@@ -159,8 +181,8 @@ export async function getLatestRecords(limit = 3): Promise<NewRecord[]> {
   return latest;
 }
 
-/** One approved submission's record, for its share card — or null unless it
- * was approved and took a #1 (exactly the ones getLatestRecords can show). */
+/** One approved submission's share card — or null unless it was approved
+ * and made a top 3 (exactly the ones getLatestRecords can show). */
 export async function getNewRecord(id: string): Promise<NewRecord | null> {
   const s = await prisma.recordSubmission.findFirst({
     where: { id, status: "APPROVED", decidedAt: { not: null } },

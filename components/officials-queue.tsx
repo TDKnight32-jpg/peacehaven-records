@@ -9,6 +9,7 @@ import {
   type DecisionResult,
 } from "@/app/officials/actions";
 import type { PlacementSummary } from "@/lib/record-approval";
+import { cardPlaceText } from "@/lib/record-ranking";
 import { RecordCardThumb } from "./record-card-thumb";
 
 export interface QueueSubmission {
@@ -356,7 +357,9 @@ function DecisionPanel({ outcome: o, onDismiss }: { outcome: DecisionOutcome; on
           >
             {approved
               ? o.newRecord
-                ? `Approved · ${o.newRecord.joint ? "joint" : "new"} club record`
+                ? o.newRecord.place === 1
+                  ? `Approved · ${o.newRecord.joint ? "joint" : "new"} club record`
+                  : `Approved · ${cardPlaceText(o.newRecord.place, o.newRecord.joint).toLowerCase()} in ${o.newRecord.listLabel}`
                 : "Approved"
               : "Declined"}
           </p>

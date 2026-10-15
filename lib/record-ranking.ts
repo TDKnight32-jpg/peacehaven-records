@@ -68,6 +68,12 @@ export function placeLabel(place: number, joint: boolean): string {
   return joint ? `Joint ${ordinal}` : ordinal;
 }
 
+/** What a share card is for, in words: "New record", "Joint record", "2nd" or "Joint 3rd". */
+export function cardPlaceText(place: number, joint: boolean): string {
+  if (place === 1) return joint ? "Joint record" : "New record";
+  return placeLabel(place, joint);
+}
+
 export type Placement<T> =
   /** Would enter the list at `position` (its place, 1-based), sharing it with
    * `jointWith` if tied; `list` is the resulting list (everyone placed 3rd or

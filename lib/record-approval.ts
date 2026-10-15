@@ -120,8 +120,10 @@ export function listLabelWithDistance(key: ListKey, distanceName: string): strin
  * below 3rd, and replacing the athlete's own older entry — and, for each list
  * where it takes or equals #1, appends to that list's history (see
  * recordNewHolder).
- * Footnotes stay with the performance they annotate. Returns each list it
- * entered and at what position — empty if it made no top 3.
+ * Footnotes stay with the performance they annotate. Also saves where it
+ * placed on the submission (overallRank / ageGroupRank, and whether each
+ * place is joint), for its share card. Returns each list it entered and at
+ * what position — empty if it made no top 3.
  */
 export async function publishApprovedSubmission(
   tx: Prisma.TransactionClient,
@@ -138,6 +140,12 @@ export async function publishApprovedSubmission(
   };
 
   const changes: ListChange[] = [];
+  const placed = {
+    overallRank: null as number | null,
+    overallJoint: false,
+    ageGroupRank: null as number | null,
+    ageGroupJoint: false,
+  };
   for (const key of listsFor(submission)) {
     const current = await currentList(tx, submission, key);
     const p = placement(submission, current);
@@ -179,6 +187,13 @@ export async function publishApprovedSubmission(
         create: { ...slot, ...data },
       });
     }
+    if (key.recordType === "OVERALL") {
+      placed.overallRank = p.position;
+      placed.overallJoint = p.jointWith.length > 0;
+    } else {
+      placed.ageGroupRank = p.position;
+      placed.ageGroupJoint = p.jointWith.length > 0;
+    }
     changes.push({
       position: p.position,
       jointWith: p.jointWith.map((e) => e.name!),
@@ -187,6 +202,7 @@ export async function publishApprovedSubmission(
 
     if (p.position === 1) await recordNewHolder(tx, submission, key, current[0], newEntry);
   }
+  await tx.recordSubmission.update({ where: { id: submission.id }, data: placed });
   return changes;
 }
 

@@ -3,13 +3,17 @@
 import { useRef, useState } from "react";
 import type { NewRecord } from "@/lib/record-highlights";
 import { RECORD_CARD_THUMB_SIZE } from "@/lib/record-card-size";
+import { placeLabel } from "@/lib/record-ranking";
 import { slugify } from "@/lib/slug";
 
-/** A record's share card (the 480px version from app/record-card/[id]) with
- * a Share button over its bottom-right corner — used by the Latest records
- * strip and the officials' approval panel. */
+/** A record or top-3 place's share card (the 480px version from
+ * app/record-card/[id]) with a Share button over its bottom-right corner —
+ * used by the Latest records & top 3s strip and the officials' approval panel. */
 export function RecordCardThumb({ record, cardUrl }: { record: NewRecord; cardUrl: string }) {
-  const title = `${record.joint ? "Joint" : "New"} ${record.listLabel} record`;
+  const title =
+    record.place === 1
+      ? `${record.joint ? "Joint" : "New"} ${record.listLabel} record`
+      : `${placeLabel(record.place, record.joint)} in ${record.listLabel}`;
   return (
     <div className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element -- already a sized PNG from our own route */}

@@ -1,8 +1,9 @@
 import type { NewRecord } from "@/lib/record-highlights";
+import { cardPlaceText } from "@/lib/record-ranking";
 import { RecordCardThumb } from "./record-card-thumb";
 
-/** The most recent records approved through the site, each as its share card
- * with a Share button over the corner. Renders nothing when there are none,
+/** The most recent records and top-3 places approved through the site, each
+ * as its share card with a Share button over the corner. Renders nothing when there are none,
  * rather than an empty box. On phones the cards scroll sideways. */
 export function LatestRecords({
   records,
@@ -17,7 +18,7 @@ export function LatestRecords({
   return (
     <section aria-labelledby="latest-records-heading">
       <h2 id="latest-records-heading" className="text-xs font-semibold uppercase tracking-wide text-gp-gold">
-        Latest records
+        Latest records &amp; top 3s
       </h2>
       {/* Bleeds to the screen edge on phones so the sideways scroll isn't
           cut off at the page gutter. */}
@@ -36,8 +37,10 @@ function RecordCardItem({ record, cardUrl }: { record: NewRecord; cardUrl: strin
       <RecordCardThumb record={record} cardUrl={cardUrl} />
       <p className="mt-1.5 truncate text-sm font-semibold text-foreground">{record.athleteName}</p>
       <p className="truncate text-xs text-muted">
-        <span className="font-mono font-semibold text-primary">{record.performance}</span> · {record.listLabel}
+        <span className="font-mono font-semibold text-primary">{record.performance}</span> ·{" "}
+        <span className="font-semibold text-foreground">{cardPlaceText(record.place, record.joint)}</span>
       </p>
+      <p className="truncate text-xs text-muted">{record.listLabel}</p>
     </li>
   );
 }
