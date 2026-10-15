@@ -53,6 +53,29 @@ function Field({
   );
 }
 
+/** Turns typed digits into a time, filling from the right: the last two are
+ * seconds, the two before are minutes, anything before that is hours —
+ * 1958 → 19:58, 25300 → 2:53:00. */
+function formatTimeDigits(digits: string) {
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+  return `${digits.slice(0, -4)}:${digits.slice(-4, -2)}:${digits.slice(-2)}`;
+}
+
+/** The time box. People type the colons themselves; if they leave the box
+ * with digits only (e.g. 25300), the colons are added for them. */
+function TimeInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      onBlur={(e) => {
+        const raw = e.currentTarget.value.trim();
+        if (/^\d{3,7}$/.test(raw)) e.currentTarget.value = formatTimeDigits(raw);
+      }}
+    />
+  );
+}
+
 /** The current #1 and #3 for the list the submitter has picked, read fresh
  * from the server each time the choice changes. Information only — a slower
  * time can still be submitted. */
@@ -175,6 +198,9 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
       // fields when the server sends back validation errors.
       onSubmit={(e) => {
         e.preventDefault();
+        // Go/Return submits without leaving the field — blur it first so the
+        // time box can add colons to a digits-only time.
+        (document.activeElement as HTMLElement | null)?.blur();
         const formData = new FormData(e.currentTarget);
         startTransition(() => formAction(formData));
       }}
@@ -260,13 +286,13 @@ export function SubmitRecordForm({ distances }: { distances: SubmitDistanceOptio
               <Field
                 id="performance"
                 label="Time"
-                hint="mm:ss, or h:mm:ss if over an hour — e.g. 19:42 or 1:28:05."
+                hint="Type it with colons, e.g. 19:42 or 1:28:05. On iPhone tap 123 to find the colon."
                 error={errors.performance}
               >
-                <input
+                <TimeInput
                   id="performance"
                   name="performance"
-                  inputMode="numeric"
+                  inputMode="text"
                   placeholder="h:mm:ss"
                   autoComplete="off"
                   className={clsx(inputClass, "font-mono")}
