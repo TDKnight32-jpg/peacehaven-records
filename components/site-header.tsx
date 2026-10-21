@@ -7,10 +7,10 @@ export function SiteHeader({
   section = "records",
   homeHref,
 }: {
-  section?: "records" | "gp";
+  section?: "records" | "gp" | "c25k";
   homeHref?: string;
 }) {
-  const subtitle = section === "gp" ? "Club Grand Prix" : "Club Records";
+  const subtitle = section === "gp" ? "Club Grand Prix" : section === "c25k" ? "Couch to 5K" : "Club Records";
 
   const brand = (
     <>
