@@ -44,7 +44,7 @@ export function SessionLogButton({ cohortId, session }: { cohortId: string; sess
         </span>
         <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
           {session.mood && <MoodFace level={session.mood as 1 | 2 | 3 | 4 | 5} className="h-3.5 w-3.5" />}
-          {summary ?? "Tap to log details"}
+          {summary ?? <span className="font-bold">Tap to log details</span>}
         </span>
       </button>
 

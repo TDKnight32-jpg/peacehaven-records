@@ -289,6 +289,9 @@ enum SessionType {
 // EARLY_BIRD        — any completed session logged before 08:00
 // NIGHT_OWL         — any completed session logged at/after 20:00
 // PERFECT_WEEK      — some week's 3 sessions all completed within 7 days
+// FIRST_LOGIN       — never awarded by evaluateAndAwardBadges (always
+//                     false there) — exclusively claimWelcomeBadge's,
+//                     the first time a runner ever reaches /my-plan
 enum BadgeKind {
   FIRST_RUN
   FIRST_SOLO_RUN
@@ -298,6 +301,7 @@ enum BadgeKind {
   EARLY_BIRD
   NIGHT_OWL
   PERFECT_WEEK
+  FIRST_LOGIN
 }
 
 model Badge {

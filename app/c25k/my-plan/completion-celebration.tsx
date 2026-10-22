@@ -3,16 +3,23 @@
 import { forwardRef, type CSSProperties } from "react";
 import { Star, Trophy } from "@/components/c25k-icons";
 
-export interface CelebrationData {
-  firstName: string;
-  weekNumber: number;
-  sessionOrder: number;
-  durationMinutes: number | null;
-  weekComplete: boolean;
-  milestone: boolean;
-  hasMiss: boolean;
-  newlyEarnedBadges: { slug: string; name: string }[];
-}
+export type CelebrationData =
+  | {
+      kind: "welcome";
+      firstName: string;
+      newlyEarnedBadges: { slug: string; name: string }[];
+    }
+  | {
+      kind: "session";
+      firstName: string;
+      weekNumber: number;
+      sessionOrder: number;
+      durationMinutes: number | null;
+      weekComplete: boolean;
+      milestone: boolean;
+      hasMiss: boolean;
+      newlyEarnedBadges: { slug: string; name: string }[];
+    };
 
 // A full-viewport falling-confetti overlay — only for a whole-week finish
 // (see where it's used below), not every plain session completion. Each
@@ -62,7 +69,16 @@ function milestoneSubMessage(weekNumber: number): string {
   return "Final week done — your first 5K awaits!";
 }
 
+function heading(data: CelebrationData): string {
+  if (data.kind === "welcome") return "Welcome!";
+  return `Week ${data.weekNumber} Run ${data.sessionOrder}`;
+}
+
 function subMessage(data: CelebrationData): string {
+  if (data.kind === "welcome") {
+    return "You've taken the first step in your Couch to 5K journey!";
+  }
+
   const ran = data.durationMinutes != null ? `You ran for ${data.durationMinutes} minutes. ` : "";
 
   if (data.weekComplete) {
@@ -80,33 +96,54 @@ function joinWithAnd(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-/** Fires on any transition into Completed status — a direct tick or a
- * Missed→Completed correction, both genuinely are one (see plan-view.tsx's
- * `isNewCompletion`). Centered (via `m-auto`, the same fix the badge/
- * session-log modals needed), confetti only for a whole-week finish, and
- * any badge(s) that completion just earned surfaced alongside the usual
- * message. The week/milestone case is folded into this same screen, not a
- * second celebration on top of it. */
+/** The welcome screen names its one badge explicitly ("badge" has to
+ * appear in the sentence) rather than the generic "You've also earned:"
+ * phrasing every other celebration uses for however many it's showing. */
+function badgeCallout(data: CelebrationData): string | null {
+  if (data.newlyEarnedBadges.length === 0) return null;
+  if (data.kind === "welcome") {
+    return `You've earned the ${data.newlyEarnedBadges[0].name} badge!`;
+  }
+  return `You've also earned: ${joinWithAnd(data.newlyEarnedBadges.map((b) => b.name))}`;
+}
+
+/** Fires on any transition into Completed status (a direct tick or a
+ * Missed→Completed correction — see plan-view.tsx's `isNewCompletion`),
+ * or once ever on a runner's first visit to /my-plan (the "welcome"
+ * variant, from a mount effect calling claimWelcomeBadge — see
+ * plan-view.tsx). Centered (via `m-auto`, the same fix the badge/
+ * session-log modals needed); confetti for a whole-week finish *or* the
+ * welcome moment — both get the full celebratory treatment, nothing
+ * held back for a first-time runner's very first moment on the site.
+ * Any badge(s) just earned are surfaced alongside the usual message —
+ * the welcome screen's own phrasing names its badge explicitly ("you've
+ * earned the X badge!"), everything else uses the generic "You've also
+ * earned: …" line (see badgeCallout), but both read the badge's actual
+ * name from the server rather than a hardcoded string. */
 export const CompletionCelebration = forwardRef<HTMLDialogElement, { data: CelebrationData | null }>(
   function CompletionCelebration({ data }, ref) {
     if (!data) return <dialog ref={ref} className="c25k-celebration" />;
 
-    const accentClass = data.milestone
-      ? "bg-c25k-current-accent text-foreground"
-      : data.weekComplete && !data.hasMiss
-        ? "bg-c25k-complete text-white"
-        : "bg-primary text-primary-foreground";
+    const showConfetti = data.kind === "welcome" || data.weekComplete;
+    const accentClass =
+      data.kind === "welcome"
+        ? "bg-c25k-current-accent text-foreground"
+        : data.milestone
+          ? "bg-c25k-current-accent text-foreground"
+          : data.weekComplete && !data.hasMiss
+            ? "bg-c25k-complete text-white"
+            : "bg-primary text-primary-foreground";
 
     return (
       <dialog
         ref={ref}
-        aria-label="Session complete"
+        aria-label={data.kind === "welcome" ? "Welcome" : "Session complete"}
         className="c25k-celebration m-auto w-[min(92vw,26rem)] overflow-visible bg-transparent p-0"
         onClick={(e) => {
           if (e.target === e.currentTarget) (e.currentTarget as HTMLDialogElement).close();
         }}
       >
-        {data.weekComplete && <Confetti />}
+        {showConfetti && <Confetti />}
 
         <div className="c25k-toast overflow-hidden rounded-3xl bg-surface shadow-xl">
           <div className={`relative flex flex-col items-center gap-3 overflow-hidden px-6 py-8 text-center ${accentClass}`}>
@@ -122,13 +159,14 @@ export const CompletionCelebration = forwardRef<HTMLDialogElement, { data: Celeb
               className="relative text-2xl font-bold uppercase tracking-wide"
               style={{ fontFamily: "var(--font-lilita)" }}
             >
-              Week {data.weekNumber} Run {data.sessionOrder}
+              {heading(data)}
             </h2>
             <p className="relative text-sm font-medium opacity-95">{subMessage(data)}</p>
-            {data.newlyEarnedBadges.length > 0 && (
-              <p className="relative text-sm font-bold opacity-95">
-                You&apos;ve also earned: {joinWithAnd(data.newlyEarnedBadges.map((b) => b.name))}
-              </p>
+            {badgeCallout(data) && <p className="relative text-sm font-bold opacity-95">{badgeCallout(data)}</p>}
+            {data.kind === "welcome" && (
+              <span className="relative mt-1 flex h-16 w-16 items-center justify-center rounded-full bg-white/25">
+                <Star className="h-9 w-9" />
+              </span>
             )}
           </div>
 

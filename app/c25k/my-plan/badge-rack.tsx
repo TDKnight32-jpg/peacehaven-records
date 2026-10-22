@@ -1,5 +1,5 @@
 import type { ClientBadge } from "@/lib/c25k";
-import { Clock, Flag, Moon, Runner, Sun, Trophy } from "@/components/c25k-icons";
+import { Clock, Flag, Moon, Runner, Star, Sun, Trophy } from "@/components/c25k-icons";
 
 const SECTION_ORDER = ["Weekly", "Milestones", "Time", "Fun"] as const;
 
@@ -38,6 +38,8 @@ function faceFor(badge: ClientBadge) {
   if (sessionCount) return <NumberFace bottom={sessionCount} />;
 
   switch (badge.slug) {
+    case "getting-started":
+      return <Star className="h-5 w-5" />;
     case "first-run":
       return <Runner className="h-5 w-5" />;
     case "first-solo-run":
@@ -69,19 +71,14 @@ function shortLabel(badge: ClientBadge): string | null {
   return badge.name;
 }
 
+// One unified "earned" look (gold fill, black outline) regardless of
+// section — a badge either has the look or it doesn't; category no
+// longer drives color. Unearned stays a genuine neutral grey, not a
+// theme tone, so "locked" reads unambiguously against every other
+// (warm, colorful) tile on the page.
 function colorClassName(badge: ClientBadge): string {
-  if (!badge.earned) return "border-border bg-background text-muted";
-  switch (badge.section) {
-    case "Weekly":
-      return "border-c25k-complete bg-c25k-complete-bg text-c25k-complete";
-    case "Time":
-      return "border-c25k-current bg-c25k-current-bg text-c25k-current";
-    case "Milestones":
-      return "border-primary bg-primary-100 text-primary";
-    case "Fun":
-      if (badge.slug === "night-owl") return "border-gp-plum bg-gp-plum-bg text-gp-plum";
-      return "border-c25k-current bg-c25k-current-bg text-c25k-current";
-  }
+  if (!badge.earned) return "border-gray-400 bg-gray-200 text-gray-400";
+  return "border-black bg-c25k-current-accent text-foreground";
 }
 
 /** The badge rack — every badge in the catalog, grouped into the same four

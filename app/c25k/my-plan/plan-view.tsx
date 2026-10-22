@@ -7,7 +7,7 @@ import { Check, Close, Flag, Lock, Runner } from "@/components/c25k-icons";
 import { BadgeModalButton } from "./badge-modal";
 import { SessionLogButton } from "./session-log-modal";
 import { CompletionCelebration, type CelebrationData } from "./completion-celebration";
-import { revertSession, setSessionStatus } from "./actions";
+import { claimWelcomeBadge, revertSession, setSessionStatus } from "./actions";
 
 // Weeks 3, 6 and 9 (every third week, for any plan length) are milestones —
 // bigger markers, a flag instead of a plain number, and their own
@@ -232,6 +232,29 @@ export function PlanView({
     if (celebrationData) celebrationDialogRef.current?.showModal();
   }, [celebrationData]);
 
+  // Checked once on every mount — idempotent server-side (see
+  // claimWelcomeBadge), so after a runner's genuine first visit this is
+  // just a cheap lookup that no-ops on every later one. A ref (not just
+  // relying on the empty dependency array) guards against StrictMode's
+  // deliberate double-invoke of effects in development firing it twice
+  // in the same mount.
+  const welcomeClaimed = useRef(false);
+  useEffect(() => {
+    if (welcomeClaimed.current) return;
+    welcomeClaimed.current = true;
+
+    claimWelcomeBadge(cohortId).then((result) => {
+      if (result?.awarded && result.badge) {
+        setCelebrationData({
+          kind: "welcome",
+          firstName,
+          newlyEarnedBadges: [result.badge],
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleResolve(week: ClientC25kWeek, session: ClientC25kSession, status: SessionStatus) {
     // The celebration screen fires on any transition into Completed —
     // including a Missed→Completed swap, since it genuinely is a
@@ -253,6 +276,7 @@ export function PlanView({
         const weekComplete = week.sessions.every((s) => s.id === session.id || s.status === "completed" || s.status === "missed");
         const hasMiss = week.sessions.some((s) => s.id !== session.id && s.status === "missed");
         setCelebrationData({
+          kind: "session",
           firstName,
           weekNumber: week.weekNumber,
           sessionOrder: session.order,

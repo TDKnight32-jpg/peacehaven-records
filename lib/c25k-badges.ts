@@ -25,6 +25,18 @@ const WEEKLY_BADGES: BadgeDefinition[] = Array.from({ length: 9 }, (_, i) => {
 });
 
 export const BADGE_DEFINITIONS: BadgeDefinition[] = [
+  // First, chronologically — earned on a runner's very first visit to
+  // /my-plan, before they've ticked anything. Exclusively
+  // claimWelcomeBadge's to award (see the BadgeKind.FIRST_LOGIN comment
+  // in evaluateAndAwardBadges below).
+  {
+    slug: "getting-started",
+    name: "Getting Started",
+    description: "Log in for the first time and take your first step",
+    kind: BadgeKind.FIRST_LOGIN,
+    threshold: null,
+    section: "Milestones",
+  },
   ...WEEKLY_BADGES,
   {
     slug: "first-run",
@@ -254,6 +266,11 @@ export async function evaluateAndAwardBadges(
         break;
       case BadgeKind.PERFECT_WEEK:
         qualifies = hasPerfectWeek;
+        break;
+      case BadgeKind.FIRST_LOGIN:
+        // Awarded by claimWelcomeBadge (actions.ts) on a runner's first
+        // visit to /my-plan, never by this progress-based evaluator.
+        qualifies = false;
         break;
     }
 

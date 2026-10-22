@@ -116,6 +116,34 @@ export async function logSessionDetails(
   revalidatePath("/c25k/my-plan");
 }
 
+/** Called once on every /my-plan mount (see plan-view.tsx) — idempotent,
+ * so after the very first genuine call it's just a cheap lookup that
+ * no-ops forever after. Checked without a cohortId filter, unlike every
+ * other badge: "once per runner, ever" means a runner who repeats the
+ * programme in a later cohort must not see the welcome screen again, so
+ * this has to ignore which cohort originally earned it. */
+export async function claimWelcomeBadge(
+  cohortId: string,
+): Promise<{ awarded: boolean; badge?: { slug: string; name: string } }> {
+  const runner = await getSessionRunner();
+  if (!runner) return { awarded: false };
+
+  const alreadyHasIt = await prisma.runnerBadge.findFirst({
+    where: { runnerId: runner.id, badge: { slug: "getting-started" } },
+  });
+  if (alreadyHasIt) return { awarded: false };
+
+  const badge = await prisma.badge.findUnique({ where: { slug: "getting-started" } });
+  if (!badge) return { awarded: false }; // not seeded yet — fail quietly rather than error
+
+  await prisma.runnerBadge.create({
+    data: { runnerId: runner.id, badgeId: badge.id, cohortId },
+  });
+
+  revalidatePath("/c25k/my-plan");
+  return { awarded: true, badge: { slug: badge.slug, name: badge.name } };
+}
+
 export async function logout() {
   await clearSession();
   redirect("/c25k");
