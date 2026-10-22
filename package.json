@@ -11,6 +11,7 @@
     "import": "tsx scripts/import-records.ts",
     "import-gp": "tsx scripts/import-gp.ts",
     "seed-c25k": "tsx scripts/seed-c25k.ts",
+    "seed-c25k-badges": "tsx scripts/seed-c25k-badges.ts",
     "generate-links": "tsx scripts/generate-links.ts",
     "import-c25k-runners": "tsx scripts/import-c25k-runners.ts",
     "backup-db": "tsx scripts/backup-db.ts",

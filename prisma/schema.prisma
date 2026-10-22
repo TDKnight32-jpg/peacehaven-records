@@ -232,27 +232,82 @@ model C25kSession {
   @@unique([weekId, order])
 }
 
-// One runner ticking off one session within one cohort's run of the
-// programme. A runner who repeats the programme in a later cohort gets a
-// fresh set of rows rather than reusing the old ones.
+// One runner resolving one session within one cohort's run of the
+// programme — either by completing it or marking it missed. A runner who
+// repeats the programme in a later cohort gets a fresh set of rows rather
+// than reusing the old ones. The row is created the first time a session
+// is resolved; sessions resolve in strict order (see lib/c25k.ts), and a
+// resolved session can be switched between Completed and Missed, or (only
+// while it's still the single most-recently-resolved one — see
+// lib/c25k.ts's `canRevert`) reverted back to unresolved by deleting the
+// row. Only `COMPLETED` rows ever carry logged detail — a missed session
+// has nothing to log, and only completions count toward badges (see
+// c25k-badges.ts).
 model RunnerProgress {
-  id          String      @id @default(cuid())
-  runner      Runner      @relation(fields: [runnerId], references: [id])
+  id          String        @id @default(cuid())
+  runner      Runner        @relation(fields: [runnerId], references: [id])
   runnerId    String
-  cohort      Cohort      @relation(fields: [cohortId], references: [id])
+  cohort      Cohort        @relation(fields: [cohortId], references: [id])
   cohortId    String
-  session     C25kSession @relation(fields: [sessionId], references: [id])
+  session     C25kSession   @relation(fields: [sessionId], references: [id])
   sessionId   String
-  completedAt DateTime    @default(now())
+  status      SessionStatus @default(COMPLETED)
+  completedAt DateTime      @default(now())
+  // Optional, quick-logged detail — never required to resolve a session,
+  // and never set on a MISSED one.
+  durationMinutes Int?
+  sessionType     SessionType?
+  // "HH:MM" straight from a native <input type="time">; stored as the
+  // runner's local wall-clock time, not a timestamp, since only the time of
+  // day matters (Early Bird / Night Owl badges) and a plain string avoids
+  // any timezone-conversion surprises.
+  timeOfDay       String?
+  // 1 (sad) to 5 (grinning) — how the run felt. Purely a personal log, no
+  // badge or progress logic reads it.
+  mood            Int?
 
   @@unique([runnerId, cohortId, sessionId])
 }
 
+enum SessionStatus {
+  COMPLETED
+  MISSED
+}
+
+enum SessionType {
+  SOLO
+  GROUP
+}
+
+// What a Badge's `kind` + `threshold` mean, checked in
+// lib/c25k-badges.ts#evaluateAndAwardBadges:
+// FIRST_RUN         — any completed session ever (threshold unused)
+// FIRST_SOLO_RUN    — any completed session logged as SessionType.SOLO
+// WEEKLY_COMPLETE   — all sessions of week `threshold` are completed
+// SESSION_COUNT     — total completed sessions >= `threshold`
+// TIME_TOTAL        — total logged durationMinutes >= `threshold`
+// EARLY_BIRD        — any completed session logged before 08:00
+// NIGHT_OWL         — any completed session logged at/after 20:00
+// PERFECT_WEEK      — some week's 3 sessions all completed within 7 days
+enum BadgeKind {
+  FIRST_RUN
+  FIRST_SOLO_RUN
+  WEEKLY_COMPLETE
+  SESSION_COUNT
+  TIME_TOTAL
+  EARLY_BIRD
+  NIGHT_OWL
+  PERFECT_WEEK
+}
+
 model Badge {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
+  slug        String    @unique
   name        String
   description String?
   criteria    String // free text for now, e.g. "Complete all 9 weeks"
+  kind        BadgeKind
+  threshold   Int? // week number, session count, or minutes — see BadgeKind
 
   runners RunnerBadge[]
 }

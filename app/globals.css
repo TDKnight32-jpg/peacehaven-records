@@ -48,6 +48,19 @@
   --color-gp-points-strong: #1a8754;
   --color-gp-points-mid: #b8860b;
   --color-gp-points-weak: #c1553d;
+
+  /* Couch to 5K — status accents used on top of the bold c25k-theme palette
+   * below. Fixed values (not theme-scoped), same reasoning as the GP medal
+   * tones above. "Complete" deliberately reuses the club's green identity
+   * (close to GP's --color-gp-points-strong / Records' --color-primary)
+   * rather than a coral tint, so a finished week reads as "club green" against
+   * the warm background — the one deliberate accent color in an otherwise
+   * coral/gold palette. "Current" is a warm gold, distinct from both. */
+  --color-c25k-complete: #19762f;
+  --color-c25k-complete-bg: #cdeab3;
+  --color-c25k-current: #8f5400;
+  --color-c25k-current-bg: #ffe2a0;
+  --color-c25k-current-accent: #ff9900;
 }
 
 /* Club Grand Prix theme — scoped to .gp-theme (see app/gp/layout.tsx) so it
@@ -71,6 +84,49 @@
 
   --color-primary-50: #eaf3de;
   --color-primary-100: #d9e8c8;
+}
+
+/* Couch to 5K ("Sunrise Start") theme — scoped to .c25k-theme (see
+ * app/c25k/layout.tsx), same approach as .gp-theme above: reuses the shared
+ * token names so components pick these up via the cascade. Bold and
+ * energetic (apricot/coral/gold) rather than GP's muted green, with the
+ * club's green identity kept as a single deliberate accent
+ * (--color-c25k-complete, above) for "you did this" moments — ticked
+ * sessions, completed weeks, progress — rather than used throughout. */
+.c25k-theme {
+  --color-background: #ffd9a3;
+  --color-surface: #fff6ea;
+  --color-foreground: #241207;
+  --color-muted: #7a5a3a;
+  --color-border: #f0b96c;
+
+  --color-primary: #ea3f12;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #ea3f12;
+  --color-secondary-foreground: #ffffff;
+
+  --color-primary-50: #ffe7cf;
+  --color-primary-100: #ffc79a;
+
+  /* Faint "rolling hills" contour pattern so the wide margins either side of
+   * the content column (and gaps between cards) don't read as bare — ties
+   * into the same trail/journey motif as the dotted connectors and footprint
+   * markers on /my-plan, just abstracted into a background texture. Baked
+   * as a literal hex + stroke-opacity (data URIs can't see CSS variables),
+   * so it needs updating by hand if --color-foreground ever changes. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='260' viewBox='0 0 300 260'%3E%3Cpath d='M-20 40 Q 55 24 130 40 T 280 40 T 430 40' fill='none' stroke='%23241207' stroke-opacity='0.14' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M-20 130 Q 55 114 130 130 T 280 130 T 430 130' fill='none' stroke='%23241207' stroke-opacity='0.14' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M-20 220 Q 55 204 130 220 T 280 220 T 430 220' fill='none' stroke='%23241207' stroke-opacity='0.14' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 300px 260px;
+}
+
+/* Headings get the section's rounded display face; body text stays on the
+ * site's normal sans so form controls/running text keep reading cleanly.
+ * Scoped by the cascade rather than per-component classes — see the
+ * .gp-theme comment above for why that's the pattern here. */
+.c25k-theme h1,
+.c25k-theme h2,
+.c25k-theme h3 {
+  font-family: var(--font-quicksand), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -102,6 +158,11 @@
   --color-gp-points-strong: var(--color-gp-points-strong);
   --color-gp-points-mid: var(--color-gp-points-mid);
   --color-gp-points-weak: var(--color-gp-points-weak);
+  --color-c25k-complete: var(--color-c25k-complete);
+  --color-c25k-complete-bg: var(--color-c25k-complete-bg);
+  --color-c25k-current: var(--color-c25k-current);
+  --color-c25k-current-bg: var(--color-c25k-current-bg);
+  --color-c25k-current-accent: var(--color-c25k-current-accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -155,4 +216,89 @@ body {
   .gp-ticker-toggle {
     display: none;
   }
+}
+
+/* Couch to 5K (components/c25k-icons.tsx, app/c25k/my-plan/plan-view.tsx):
+ * a session chip "pops" the instant it's ticked, and the completion toast
+ * slides/fades in. Both skipped under reduced motion — the toast still
+ * shows, just without the motion — same convention as the ticker above. */
+@keyframes c25k-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes c25k-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.c25k-pop {
+  animation: c25k-pop 0.4s ease-out;
+}
+
+.c25k-toast {
+  animation: c25k-toast-in 0.25s ease-out;
+}
+
+/* The completion celebration's confetti (app/c25k/my-plan/
+ * completion-celebration.tsx), shown only for a whole-week finish — each
+ * piece falls from above the viewport to past its bottom, with its own
+ * --drift/--rot (a small left-right wobble and spin) and its own
+ * animation-duration/delay set inline; this is just the one shared
+ * keyframe that reads them. vh/vw-based, not fixed-px, so it actually
+ * covers the screen on any device size. */
+@keyframes c25k-confetti {
+  0% {
+    transform: translate(0, -10vh) rotate(0deg);
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--drift), 110vh) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+.c25k-confetti-piece {
+  animation-name: c25k-confetti;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c25k-pop,
+  .c25k-toast {
+    animation: none;
+  }
+  .c25k-confetti-piece {
+    display: none;
+  }
+}
+
+/* The badge rack's modal (app/c25k/my-plan/badge-modal.tsx) — a native
+ * <dialog>, so this is just its backdrop dimming; everything else
+ * (centering, focus trap, Escape-to-close) comes from the browser. */
+.c25k-badge-modal::backdrop {
+  background: rgb(40 25 10 / 45%);
+}
+
+/* The completion celebration's modal (completion-celebration.tsx) — same
+ * backdrop treatment as the badge rack's. */
+.c25k-celebration::backdrop {
+  background: rgb(40 25 10 / 45%);
 }
