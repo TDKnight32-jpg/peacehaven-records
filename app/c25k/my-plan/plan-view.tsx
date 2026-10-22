@@ -40,12 +40,10 @@ function greeting(
 }
 
 function weekCardClassName(week: ClientC25kWeek): string {
-  if (week.status === "complete") {
-    return week.hasMissedSession
-      ? "overflow-hidden rounded-2xl bg-c25k-current-bg"
-      : "overflow-hidden rounded-2xl bg-c25k-complete-bg";
-  }
+  // Every card is the same cream surface now — status lives in the chip,
+  // checkmark and marker colors, not in a tinted card background.
   if (week.status === "current") return "overflow-hidden rounded-2xl bg-surface shadow-sm";
+  if (week.status === "complete") return "overflow-hidden rounded-2xl bg-surface";
   return "overflow-hidden rounded-2xl border border-border bg-background";
 }
 
@@ -67,11 +65,16 @@ function WeekMarker({ week, milestone, nudge }: { week: ClientC25kWeek; mileston
   }
 
   if (week.status === "current") {
+    // The one deliberate use of the club's "secondary" green
+    // (--color-c25k-club-green) anywhere in C25K — just this marker, not
+    // the card around it (which stays gold; see weekCardClassName and
+    // the "Current week" chip below), so it reads as an occasional nod
+    // rather than turning C25K into "GP but orange".
     return (
       <span style={style} className="relative flex flex-shrink-0 items-center justify-center">
-        <span className="absolute inset-0 rounded-full bg-c25k-current-accent/60 motion-safe:animate-ping" />
+        <span className="absolute inset-0 rounded-full bg-c25k-club-green/60 motion-safe:animate-ping" />
         <span
-          className={`relative flex ${size} items-center justify-center rounded-full border-2 border-c25k-current-accent bg-surface text-c25k-current`}
+          className={`relative flex ${size} items-center justify-center rounded-full border-2 border-c25k-club-green bg-surface text-c25k-club-green`}
         >
           {icon}
         </span>
@@ -331,7 +334,7 @@ export function PlanView({
               <div className="flex w-14 flex-shrink-0 flex-col items-center">
                 <WeekMarker week={week} milestone={milestone} nudge={nudge} />
                 {week.status === "current" && (
-                  <span className="mt-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-c25k-current">
+                  <span className="mt-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-c25k-club-green">
                     You are
                     <br />
                     here

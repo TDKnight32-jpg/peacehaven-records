@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSessionRunner } from "@/lib/c25k-auth";
 import { Runner } from "@/components/c25k-icons";
+import { HeroBanner } from "./hero-banner";
 
 export const revalidate = 0;
 
@@ -44,7 +45,11 @@ export default async function C25kHomePage({ searchParams }: PageProps<"/c25k">)
         9-week beginner programme
       </span>
 
-      <h1 className="mb-4 text-5xl font-bold tracking-tight text-foreground sm:text-6xl">Couch to 5K</h1>
+      {/* photoSrc intentionally omitted — see hero-banner.tsx for how to
+       * add a real club photo once one's sorted. */}
+      <HeroBanner>
+        <h1 className="text-4xl font-bold uppercase tracking-wide text-white sm:text-5xl">Couch to 5K</h1>
+      </HeroBanner>
 
       <p className="mb-7 max-w-xl text-lg leading-relaxed text-muted">
         Peacehaven Run Club&apos;s Couch to 5K programme — a 9-week plan to take you from your first run to a full

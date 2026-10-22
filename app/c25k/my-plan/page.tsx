@@ -22,9 +22,7 @@ export default async function MyPlanPage() {
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-5xl tracking-tight sm:text-6xl" style={{ fontFamily: "var(--font-lilita)" }}>
-            My Plan
-          </h2>
+          <h2 className="text-5xl tracking-tight sm:text-6xl">My Plan</h2>
           <p className="mt-1 text-sm text-muted">
             {runner.name}
             {cohort && ` · ${cohort.name} cohort`}

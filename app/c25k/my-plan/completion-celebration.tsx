@@ -155,12 +155,7 @@ export const CompletionCelebration = forwardRef<HTMLDialogElement, { data: Celeb
               <Trophy className="h-9 w-9" />
             </span>
 
-            <h2
-              className="relative text-2xl font-bold uppercase tracking-wide"
-              style={{ fontFamily: "var(--font-lilita)" }}
-            >
-              {heading(data)}
-            </h2>
+            <h2 className="relative text-2xl font-bold uppercase tracking-wide">{heading(data)}</h2>
             <p className="relative text-sm font-medium opacity-95">{subMessage(data)}</p>
             {badgeCallout(data) && <p className="relative text-sm font-bold opacity-95">{badgeCallout(data)}</p>}
             {data.kind === "welcome" && (
