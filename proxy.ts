@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // records.peacehavenrunclub.com, grandprix.peacehavenrunclub.com,
-// c25k.peacehavenrunclub.com, and logbook.peacehavenrunclub.com all point at
+// c25k.peacehavenrunclub.com, logbook.peacehavenrunclub.com and
+// festive5k.peacehavenrunclub.com all point at
 // this same app. Records is the site's literal root (no rewrite needed);
 // Grand Prix, Couch to 5K, and the Training logbook each have their own
 // pages living under /gp, /c25k, and /logbook respectively, so on those
@@ -13,6 +14,7 @@ const HOST_PREFIXES: Record<string, string> = {
   "grandprix.peacehavenrunclub.com": "/gp",
   "c25k.peacehavenrunclub.com": "/c25k",
   "logbook.peacehavenrunclub.com": "/logbook",
+  "festive5k.peacehavenrunclub.com": "/festive5k",
 };
 
 export function proxy(request: NextRequest) {

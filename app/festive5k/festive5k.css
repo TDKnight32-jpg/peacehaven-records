@@ -1,0 +1,116 @@
+/* PRC Festive 5K — styles from the approved mock-up, every rule scoped under
+ * .festive-page (the wrapper in app/festive5k/layout.tsx) so nothing leaks
+ * onto the other club sites. One deliberate look: snowy pine and cranberry. */
+
+body:has(.festive-page){margin:0;background:#0e2620}
+
+.festive-page{
+  --pine:#0e2620; --pine-2:#15352c; --pine-3:#1d4639; --line:rgba(244,246,240,.12);
+  --snow:#f4f6f0; --frost:#a9c9bc; --berry:#d43a46; --berry-deep:#a5242f; --gold:#e8b64c;
+  --good:#7fd6a2; --bad:#ff8f8f; --paper:#fbfaf5; --ink:#1b2420;
+  --display:var(--font-alfa),Rockwell,"Roboto Slab",Georgia,serif;
+  --body:var(--font-figtree),system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:var(--font-jbmono),ui-monospace,"SF Mono",Menlo,monospace;
+  color-scheme:dark;flex:1;position:relative;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  background:var(--pine);color:var(--snow);font-family:var(--body);font-size:15px;line-height:1.5;
+  background-image:radial-gradient(1200px 500px at 50% -150px,var(--pine-3),transparent 70%);min-height:100vh;
+}
+.festive-page *,.festive-page *::before,.festive-page *::after{box-sizing:border-box}
+.festive-page .snow{position:fixed;inset:0;pointer-events:none;z-index:0}
+.festive-page .wrap{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding-block:28px 64px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+
+.festive-page .hero{display:grid;gap:10px;padding-top:12px}
+.festive-page .club{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:var(--frost)}
+.festive-page .club .dot{width:8px;height:8px;border-radius:50%;background:var(--berry);box-shadow:0 0 0 4px rgba(212,58,70,.25)}
+.festive-page h1{font-family:var(--display);font-weight:400;font-size:clamp(44px,9vw,88px);line-height:.95;margin:0;letter-spacing:.005em;text-wrap:balance}
+.festive-page h1 em{font-style:normal;color:var(--berry);text-shadow:0 2px 0 var(--berry-deep)}
+.festive-page .sub{color:var(--frost);max-width:58ch;margin:0}
+.festive-page .ribbon{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.festive-page .ribbon span{font-size:12.5px;font-weight:600;border:1px solid var(--line);padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.03)}
+.festive-page .ribbon b{color:var(--gold);font-weight:700}
+
+.festive-page .honours{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.festive-page .hon{background:var(--pine-2);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:6px;min-width:0;align-content:start}
+.festive-page .hon.rec{border-color:rgba(232,182,76,.45);background:linear-gradient(160deg,rgba(232,182,76,.12),var(--pine-2) 55%)}
+.festive-page .lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--frost)}
+.festive-page .hon.rec .lab{color:var(--gold)}
+.festive-page .hon .t{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.festive-page .hon .who{font-weight:600}
+.festive-page .hon .yr{color:var(--frost);font-size:13px}
+.festive-page .winners{display:grid;gap:6px;font-size:14px}
+.festive-page .winners div{display:flex;justify-content:space-between;gap:10px;border-top:1px dashed var(--line);padding-top:6px}
+.festive-page .winners div:first-child{border-top:0;padding-top:0}
+.festive-page .winners .y{font-family:var(--mono);color:var(--gold);font-weight:700}
+.festive-page .winners .n{text-align:right;min-width:0}
+
+.festive-page .board{background:var(--pine-2);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.festive-page .bhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line)}
+.festive-page .years{display:flex;gap:6px;flex-wrap:wrap}
+.festive-page .years button,.festive-page .seg button{font:inherit;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--snow);padding:8px 14px;border-radius:10px;cursor:pointer}
+.festive-page .years button{font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.02em}
+.festive-page .years button[aria-pressed="true"]{background:var(--berry);border-color:var(--berry);box-shadow:0 3px 0 var(--berry-deep)}
+.festive-page .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.festive-page .seg button{border:0;border-radius:0;padding:8px 12px;font-size:13px}
+.festive-page .seg button[aria-pressed="true"]{background:var(--snow);color:var(--pine)}
+.festive-page .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.festive-page input[type=search]{font:inherit;background:var(--pine);color:var(--snow);border:1px solid var(--line);border-radius:10px;padding:8px 12px;width:180px;max-width:100%}
+.festive-page button:focus-visible,.festive-page input:focus-visible,.festive-page tr:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.festive-page .stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.festive-page .stat{padding:12px 16px;border-right:1px solid var(--line);display:grid;gap:2px;min-width:0}
+.festive-page .stat:last-child{border-right:0}
+.festive-page .stat .v{font-family:var(--mono);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+@media (max-width:640px){.festive-page .stats{grid-template-columns:repeat(2,1fr)}.festive-page .stat:nth-child(2){border-right:0}.festive-page .stat:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+
+.festive-page .tablewrap{overflow-x:auto}
+.festive-page table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.festive-page th{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--frost);text-align:left;padding:10px 12px;font-weight:700;white-space:nowrap}
+.festive-page td{padding:11px 12px;border-top:1px solid var(--line);white-space:nowrap}
+.festive-page tbody tr{cursor:pointer;transition:background .15s}
+.festive-page tbody tr:hover{background:rgba(255,255,255,.045)}
+.festive-page .pos{font-family:var(--display);font-size:20px;width:56px;color:var(--frost)}
+.festive-page tr.p1 .pos{color:var(--gold)} .festive-page tr.p2 .pos{color:#d6dde0} .festive-page tr.p3 .pos{color:#d79a63}
+.festive-page .nm{font-weight:600;white-space:normal;min-width:140px}
+.festive-page .nm small{display:block;color:var(--frost);font-weight:500;font-size:12px}
+.festive-page .time{font-family:var(--mono);font-weight:700;font-size:16px}
+.festive-page .mono{font-family:var(--mono)}
+.festive-page .chip{display:inline-block;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;font-family:var(--mono)}
+.festive-page .chip.up{background:rgba(127,214,162,.14);color:var(--good)}
+.festive-page .chip.down{background:rgba(255,143,143,.12);color:var(--bad)}
+.festive-page .chip.new{background:rgba(232,182,76,.14);color:var(--gold);font-family:var(--body)}
+.festive-page .g{font-size:12px;font-weight:700;color:var(--frost)}
+.festive-page .dim{color:var(--frost)}
+@media (max-width:640px){.festive-page .hide-s{display:none}.festive-page td,.festive-page th{padding:10px 8px}}
+.festive-page .empty{padding:28px 16px;text-align:center;color:var(--frost)}
+.festive-page .foot{color:var(--frost);font-size:13px;text-align:center;margin:0}
+
+.festive-page .scrim{position:fixed;inset:0;background:rgba(5,15,12,.72);backdrop-filter:blur(3px);z-index:20;display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.festive-page .bib{position:relative;background:var(--paper);color:var(--ink);width:min(520px,100%);border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.45);overflow:hidden;animation:festive-pop .22s ease-out}
+@keyframes festive-pop{from{transform:translateY(10px) rotate(-1deg);opacity:0}to{transform:none;opacity:1}}
+.festive-page .bib .pin{position:absolute;width:12px;height:12px;border-radius:50%;background:#cfd3cc;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.festive-page .bib .pin.a{top:10px;left:10px}.festive-page .bib .pin.b{top:10px;right:10px}
+.festive-page .bibtop{background:var(--berry);color:#fff;text-align:center;padding:12px 40px 10px;font-family:var(--display);letter-spacing:.06em;font-size:15px}
+.festive-page .bibnum{text-align:center;font-family:var(--display);font-size:clamp(64px,18vw,104px);line-height:1;padding:14px 0 2px;color:var(--ink)}
+.festive-page .bibname{text-align:center;font-weight:700;font-size:20px}
+.festive-page .bibmeta{text-align:center;color:#5b6660;font-size:13px;margin-bottom:14px}
+.festive-page .close{position:absolute;top:44px;right:10px;background:rgba(0,0,0,.06);border:0;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;color:var(--ink)}
+.festive-page .bibbody{padding:0 18px 20px;display:grid;gap:16px}
+.festive-page .grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.festive-page .cell{border:1.5px solid #e2e3dc;border-radius:10px;padding:10px 12px;display:grid;gap:2px}
+.festive-page .cell .lab{color:#6a756f}
+.festive-page .cell .v{font-family:var(--mono);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+.festive-page .cell .v small{font-size:12px;color:#6a756f;font-family:var(--body);font-weight:600}
+.festive-page .cell.locked .v{font-family:var(--body);font-size:13px;font-weight:600;color:#8a948e}
+.festive-page .hist h3{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6a756f}
+.festive-page .hrow{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center;margin-bottom:8px}
+.festive-page .hrow .y{font-family:var(--mono);font-weight:700}
+.festive-page .bar{height:22px;background:#eceee7;border-radius:6px;overflow:hidden}
+.festive-page .bar i{display:block;height:100%;background:var(--pine-3);border-radius:6px}
+.festive-page .hrow.cur .bar i{background:var(--berry)}
+.festive-page .hrow .tt{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums}
+.festive-page .verdict{background:#f0f4ee;border-radius:10px;padding:12px 14px;font-weight:600}
+.festive-page .verdict b{color:#1f7a49}.festive-page .verdict b.slow{color:#b2353f}
+@media (prefers-reduced-motion:reduce){.festive-page .bib{animation:none}.festive-page .snow{display:none}}
