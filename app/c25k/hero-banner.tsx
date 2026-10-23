@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
  * and sizing are already set up to just work once that's provided. */
 export function HeroBanner({ photoSrc, children }: { photoSrc?: string; children: ReactNode }) {
   return (
-    <div className="relative mb-8 flex h-56 w-full items-center justify-center overflow-hidden rounded-2xl bg-[#223b2e] sm:h-64">
+    <div className="relative mx-auto mb-8 flex h-44 w-full max-w-lg items-center justify-center overflow-hidden rounded-2xl bg-[#223b2e] sm:h-52">
       {photoSrc ? (
         <>
           <Image src={photoSrc} alt="" fill className="object-cover" priority />
@@ -22,12 +22,6 @@ export function HeroBanner({ photoSrc, children }: { photoSrc?: string; children
       )}
 
       <div className="relative px-4 text-center">{children}</div>
-
-      {!photoSrc && (
-        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] font-medium text-white/50">
-          Photo coming soon
-        </span>
-      )}
     </div>
   );
 }

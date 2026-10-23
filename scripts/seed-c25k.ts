@@ -124,7 +124,7 @@ async function main() {
   const existingCohort = await prisma.cohort.findFirst({ where: { name: "January 2027" } });
   if (!existingCohort) {
     await prisma.cohort.create({
-      data: { year: 2027, name: "January 2027", startDate: new Date("2027-01-05") },
+      data: { year: 2027, name: "January 2027", startDate: new Date("2027-01-11") },
     });
   }
 
